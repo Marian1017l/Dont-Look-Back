@@ -1,0 +1,29 @@
+{
+  "name": "com.unity.ai.assistant",
+  "displayName": "Assistant",
+  "version": "2.21.0-pre.1",
+  "unity": "6000.0",
+  "description": "Assistant is a generative AI tool integrated into the Unity Editor to explore ideas, answer questions, and perform actions directly in the project. Use natural-language prompts to interact with Assistant in a conversation-based interface. Depending on the mode you choose, Assistant can either provide guidance or take action in your scene and assets.\n\nAsk\nFocuses on explanation and guidance. Assistant answers questions, suggests workflows, and inspects your project using read-only tools without modifying your content.\n\nAgent\nFocuses on action. Assistant can create, modify, or remove objects and assets by calling the Unity Editor tools. All actions respect your permission settings and require approval when needed.\n\nAssistant is designed to be project-aware, helping you work more efficiently without leaving the Unity Editor. It also provides tools for adding generative AI to Unity asset workflows.",
+  "dependencies": {
+    "com.unity.nuget.newtonsoft-json": "3.2.1",
+    "com.unity.modules.unitywebrequest": "1.0.0",
+    "com.unity.modules.uielements": "1.0.0",
+    "com.unity.2d.sprite": "1.0.0",
+    "com.unity.mathematics": "1.3.2",
+    "com.unity.nuget.mono-cecil": "1.11.5"
+  },
+  "unityRelease": "60f1",
+  "_upm": {
+    "changelog": "### Added\n\n- Auto-approve unsafe operations setting that lets the agent run unsafe commands without the per-command approval dialog.\n- The progress indicator shows \"Compacting...\" while the backend summarizes earlier conversation to free up context, instead of a silent \"Preparing...\" or \"Reasoning...\" for the tens of seconds it takes.\n\n### Changed\n\n- A comment-only line in the frontmatter no longer folds into a `description`. Inside a block scalar body a `#` is ordinary text.\n- The attach-items popup now sizes to its content instead of holding a fixed minimum height (UUM-153900).\n- `IToolInteractions` has a new `CanPromptUser` property reporting whether the surface can present an approval request to a user. It defaults to `false`, so existing implementations keep compiling.\n- Updated the What's New banner content for the 2.21 release.\n\n### Fixed\n\n- \"Refresh Project Overview\" now shows an error in the Assistant Settings menu when it cannot reach the AI Assistant server, instead of only writing an exception to the Console.\n- \"Your organization does not have a subscription that includes AI\" no longer blocks users whose organization can in fact use AI; the subscription signal is reported only once credits cannot be spent, a seat exemption passes the seat gate, and a confirmed subscription survives domain reloads.\n- A `SKILL.md` `description` with a same-line value continued on indented lines folds instead of dropping the continuation\n- A `SKILL.md` `description` written as a YAML block scalar (`description: >` or `description: |`) parses to its full text instead of the indicator character\n- A quoted phrase inside a folded `description`, and a quote character that ends one, are left as written\n- AI Gateway Codex sessions no longer fail with \"Model not found gpt-5.2-codex\"; the bundled Codex agent is now codex-acp 0.9.5, which defaults to gpt-5.3-codex (UUM-150162)\n- AI Generator tiles no longer turn into grey squares after an image file is edited outside Unity, and they refresh when the Editor regains focus.\n- Assistant documentation links now open the docs matching the installed package version instead of a hardcoded older version.\n- Checkpoint Settings no longer shows a dangling \"Git execution failed:\" banner when a Git command fails without an error message.\n- Checkpoint Settings no longer shows a dangling \"Git not found:\" banner when a custom Git path is left empty or whitespace-only.\n- Conversation history rendering past the window edge, overlapping, or disappearing after updating the package with the Assistant window open\n- Fixed compile errors and skipped GLB import settings when glTFast 7.0 is installed\n- Long answers are no longer clipped in the chat after the Assistant window is narrowed.\n- MCP clients such as Claude Code rejecting Unity tools and losing tool-call responses when a project sets a global `JsonConvert.DefaultSettings`\n- NullReferenceException in Chat Window\n- Profiler attachment chip tooltip now shows the full attachment name instead of \"Profiler Data\" (UUM-150810).\n- Promoting a generated Cubemap to a new asset now creates a Cubemap instead of a 2D texture.\n- RunCommand no longer force-closes Play mode on every call; read-only and safe commands run in Play mode, and any command that needs Edit mode asks before leaving Play mode.\n- The attach-items popup no longer extends past the top of the Assistant window when the window is short. Its height is limited to the space above the prompt bar, so the search field and all of its tabs stay visible and clickable (UUM-153900).\n- The unsafe-command approval prompt now shows the command title, the detected non-revertable operations, and the full script behind \"View\".\n- The warning icons in the prompt bar no longer sit on a pale yellow chip that was barely distinguishable from the background in the Light Editor theme (UUM-153945).\n- Tool call rows from external agents such as Codex (\"MCP Tool: …\", \"Run Command\") no longer show only the top half of their label in the Assistant window (UUM-156262)."
+  },
+  "upmCi": {
+    "footprint": "0b3f28b27e4401fc1457725a4f5cf66b95fac167"
+  },
+  "documentationUrl": "https://docs.unity3d.com/Packages/com.unity.ai.assistant@2.21/manual/index.html",
+  "repository": {
+    "url": "https://github.cds.internal.unity3d.com/unity/muse-editor.git",
+    "type": "git",
+    "revision": "fbd61f537aea9c379b94a4a5f74a3f4cdc641ff8"
+  },
+  "_fingerprint": "a0bce5f1cc560d570198eacf89a38414b7873be4"
+}
