@@ -1,23 +1,34 @@
 using UnityEngine;
 
-// Encuentro de "no mires atrás". Va en un cubo con Collider marcado "Is Trigger":
-// al entrar el jugador suenan los pasos y, si gira la cámara más de maxAngle, pierde una vida.
-// Reemplaza a FootstepsEvent (que se activaba al azar).
+// Encuentro de terror. Va en un cubo con Collider marcado "Is Trigger": al entrar el jugador
+// suena el aviso y comienza la amenaza. Dos modos:
+//  - NoLook (pasos detrás): si el jugador gira la cámara más de maxAngle, lo atacan.
+//  - Freeze (respiración detrás): si el jugador se mueve más de moveTolerance, lo atacan.
+// Si hay PlayerHealth en la escena el ataque quita salud; si no, usa las vidas del prototipo.
 public class LookBackEncounter : MonoBehaviour
 {
-    public AudioSource stepsAudio;       // opcional: sonido de pasos
+    public enum Mode { NoLook, Freeze }
+
+    public Mode mode = Mode.NoLook;
+    public AudioSource stepsAudio;       // sonido del aviso (pasos o respiración)
     public Collider safeZone;            // opcional: al entrar aquí el encuentro termina sin castigo
     public Jumpscare jumpscare;          // opcional: susto al atraparte
-    public float warningTime = 1.5f;     // tiempo entre entrar al trigger y que suenen los pasos
+    public float warningTime = 1.5f;     // tiempo entre entrar al trigger y que suene el aviso
     public float duration = 6f;          // cuánto dura la amenaza
+    public float soundDistance = 2f;     // a qué distancia detrás del jugador suena
     [Range(30, 180)]
-    public float maxAngle = 120f;        // tolerancia de mirada: giro permitido antes de perder
+    public float maxAngle = 120f;        // NoLook: giro permitido antes de perder
+    public float graceTime = 0.8f;       // Freeze: tiempo para reaccionar y detenerse
+    public float moveTolerance = 0.4f;   // Freeze: metros que se pueden desplazar sin perder
     public bool onlyOnce = true;         // si es false, se repite cada vez que el jugador entra
+    public bool showHint = true;         // texto de ayuda en pantalla (apagado en niveles reales)
 
     enum State { Idle, Warning, Active, Done }
     State state = State.Idle;
     float timer;
+    bool armed;
     Vector3 savedForward;
+    Vector3 startPos;
     Transform player;
     Transform cam;
 
@@ -37,30 +48,54 @@ public class LookBackEncounter : MonoBehaviour
 
         if (state == State.Warning)
         {
-            if (timer <= 0) StartSteps();
+            if (timer <= 0) StartThreat();
             return;
         }
 
         // Zona segura: llegar a ella termina el encuentro
         if (safeZone != null && safeZone.bounds.Contains(player.position)) { End(); return; }
 
-        if (Vector3.Angle(savedForward, Flat(cam.forward)) > maxAngle)
-        {
-            End();
-            if (jumpscare != null) jumpscare.Play();
-            GameManager.Instance.LoseLife();
-        }
-        else if (timer <= 0) End();
+        if (Broken()) { Caught(); return; }
+        if (timer <= 0) End();
     }
 
-    void StartSteps()
+    bool Broken()
+    {
+        if (mode == Mode.NoLook)
+            return Vector3.Angle(savedForward, Flat(cam.forward)) > maxAngle;
+
+        // Freeze: tras el tiempo de reacción se fija la posición y no se puede salir de ella
+        if (duration - timer < graceTime) return false;
+        if (!armed) { armed = true; startPos = player.position; return false; }
+        Vector3 moved = player.position - startPos;
+        moved.y = 0;
+        return moved.magnitude > moveTolerance;
+    }
+
+    void Caught()
+    {
+        End();
+        if (PlayerHealth.Instance != null)
+        {
+            if (jumpscare != null) jumpscare.Play(PlayerHealth.Instance.IsLethalHit);
+            PlayerHealth.Instance.TakeHit();
+        }
+        else
+        {
+            if (jumpscare != null) jumpscare.Play();
+            if (GameManager.Instance != null) GameManager.Instance.LoseLife();
+        }
+    }
+
+    void StartThreat()
     {
         state = State.Active;
         timer = duration;
+        armed = false;
         savedForward = Flat(cam.forward);   // hacia donde miraba al empezar
         if (stepsAudio != null)
         {
-            stepsAudio.transform.position = cam.position - savedForward * 2f;   // detrás del jugador
+            stepsAudio.transform.position = cam.position - savedForward * soundDistance;   // detrás del jugador
             stepsAudio.Play();
         }
     }
@@ -75,10 +110,10 @@ public class LookBackEncounter : MonoBehaviour
 
     void OnGUI()
     {
-        if (state != State.Warning && state != State.Active) return;
+        if (!showHint || (state != State.Warning && state != State.Active)) return;
         GUIStyle style = new GUIStyle(GUI.skin.label) { fontSize = 30, alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold };
         style.normal.textColor = state == State.Warning ? Color.gray : new Color(1f, 0.4f, 0.4f);
-        string text = state == State.Warning ? "...algo se acerca..." : "PASOS DETRÁS DE TI. NO MIRES ATRÁS";
-        GUI.Label(new Rect(0, 60, Screen.width, 50), text, style);
+        string active = mode == Mode.Freeze ? "RESPIRACIÓN DETRÁS DE TI. NO TE MUEVAS" : "PASOS DETRÁS DE TI. NO MIRES ATRÁS";
+        GUI.Label(new Rect(0, 60, Screen.width, 50), state == State.Warning ? "...algo se acerca..." : active, style);
     }
 }

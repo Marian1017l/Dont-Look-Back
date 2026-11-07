@@ -40,6 +40,8 @@ public class PlayerInteract : MonoBehaviour
 
     void OnGUI()
     {
+        DrawCrosshair();
+
         GUIStyle style = new GUIStyle(GUI.skin.label) { fontSize = 22, alignment = TextAnchor.MiddleCenter };
         style.normal.textColor = Color.white;
         Rect r = new Rect(0, Screen.height * 0.6f, Screen.width, 40);
@@ -52,5 +54,16 @@ public class PlayerInteract : MonoBehaviour
             Interactable item = hit.collider.GetComponentInParent<Interactable>();
             if (item != null) GUI.Label(r, "E: " + item.prompt, style);
         }
+    }
+
+    // Punto fijo en el centro: se agranda y se aclara al mirar algo con lo que se puede interactuar
+    void DrawCrosshair()
+    {
+        if (UIState.PanelOpen) return;
+        bool usable = Look(out RaycastHit hit) && hit.collider.GetComponentInParent<Interactable>() != null;
+        float size = usable ? 8f : 4f;
+        GUI.color = usable ? new Color(1f, 1f, 1f, 0.95f) : new Color(1f, 1f, 1f, 0.45f);
+        GUI.DrawTexture(new Rect(Screen.width / 2f - size / 2f, Screen.height / 2f - size / 2f, size, size), Texture2D.whiteTexture);
+        GUI.color = Color.white;
     }
 }

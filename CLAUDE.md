@@ -237,20 +237,16 @@ Una experiencia de terror 3D compacta con: un concepto reconocible, una mecánic
 
 Es preferible terminar tres o cuatro niveles bien diseñados que diez vacíos. El contenido se ajusta a los assets disponibles y al tiempo.
 
-## 17. Etapa actual: inspeccionar y preparar, NO desarrollar
+## 17. Etapa actual: construir el Nivel 1 (Sótano)
 
 > Actualizar esta sección cuando cambie la etapa.
 
-Por ahora **NO** crees escenas, **NO** construyas niveles, **NO** programes mecánicas y **NO** importes recursos. Realiza solo:
-
-1. **Inspeccionar** la estructura de carpetas, escenas, scripts, paquetes instalados, configuración de renderizado y recursos disponibles.
-2. **Evaluar** y clasificar los elementos en: útiles y necesarios; potencialmente reutilizables; incompletos o pendientes; claramente innecesarios; dudosos (requieren mi autorización antes de eliminarlos).
-3. **Limpiar con cuidado**: eliminar solo lo confirmado como innecesario y seguro. Si hay duda, conservar y consultar. No eliminar configuraciones esenciales, archivos de proyecto, paquetes necesarios, archivos `.meta` ni recursos de función desconocida. Si hay control de versiones, revisar su estado antes de modificar.
-4. **Proponer la organización definitiva** de carpetas y jerarquía (solo propuesta, sin crear escenas ni objetos).
-5. **Identificar los recursos necesarios**, separando imprescindibles y opcionales. No descargarlos.
-6. **Entregar un informe inicial**: qué encontraste, qué limpiaste, qué conservaste, qué problemas detectaste y cuál es el siguiente paso.
-
-No afirmes haber revisado o eliminado nada que no hayas comprobado. **Detente al terminar esta etapa** y espera instrucciones antes de programar o construir escenas.
+- La escena se genera con el menú **Don't Look Back > Crear Nivel 1 (Sótano)** (`Assets/_Project/Editor/Level01Builder.cs`) y se guarda en `Assets/_Project/Scenes/Level01_Basement.unity`. Una escena por nivel; morir recarga la escena actual.
+- Assets disponibles: `Abandoned_Asylum`, `Dnk_Dev`, `FunctionalHorrorProps` (módulos y props del hospital), `NomadicUV` (linterna), `Survival Props` (batería, vendaje), `Sounds` (respiración y ambiente).
+- Reglas de muerte: respiración detrás = **no te muevas** (`LookBackEncounter` modo Freeze); pasos detrás = **no mires atrás** (modo NoLook, pendiente de sonido de pasos).
+- Salud por golpes (`PlayerHealth`): cada ataque quita 50; dos golpes matan. Vendajes curan. Reemplaza al sistema de corazones en los niveles reales (el prototipo conserva `GameManager`/`HeartsUI`).
+- El fantasma del jumpscare es un objeto temporal (`TEMP_Ghost`) hasta tener el modelo real. No se descargan assets sin autorización (sección 11).
+- Falta por verificar en Unity: todo lo anterior (ver lista de pruebas en el informe del Nivel 1).
 
 ## 18. Principio final
 
