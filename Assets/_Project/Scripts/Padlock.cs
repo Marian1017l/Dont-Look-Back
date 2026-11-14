@@ -42,7 +42,7 @@ public class Padlock : MonoBehaviour
             IsOpen = true;
             if (!string.IsNullOrEmpty(giveItem)) Inventory.Add(giveItem);
             message = unlockedMessage;
-            messageTimer = 4f;
+            messageTimer = 6f;
             Close();
             onUnlocked.Invoke();
         }

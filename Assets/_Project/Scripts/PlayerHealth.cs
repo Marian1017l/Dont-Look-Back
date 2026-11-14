@@ -1,5 +1,6 @@
 using System.Collections;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 
 // Salud por golpes: cada ataque de la entidad quita "hitDamage". Con poca salud el jugador
@@ -59,7 +60,20 @@ public class PlayerHealth : MonoBehaviour
         ApplySpeed();
     }
 
-    public void UseBandage() => Heal(bandageHeal);
+    // Vendaje recogido: si estás herido te curas; con la salud llena se guarda para después
+    public void UseBandage()
+    {
+        if (IsDead) return;
+        if (Health >= maxHealth) Inventory.AddStack("vendaje");
+        else Heal(bandageHeal);
+    }
+
+    // H: usa un vendaje guardado
+    void UseStoredBandage()
+    {
+        if (IsDead || Health >= maxHealth || !Inventory.TakeStack("vendaje")) return;
+        Heal(bandageHeal);
+    }
 
     void ApplySpeed()
     {
@@ -89,7 +103,11 @@ public class PlayerHealth : MonoBehaviour
         SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
     }
 
-    void Update() => flash = Mathf.MoveTowards(flash, 0f, Time.deltaTime * 2.5f);
+    void Update()
+    {
+        flash = Mathf.MoveTowards(flash, 0f, Time.deltaTime * 2.5f);
+        if (!UIState.PanelOpen && Keyboard.current != null && Keyboard.current.hKey.wasPressedThisFrame) UseStoredBandage();
+    }
 
     void OnGUI()
     {

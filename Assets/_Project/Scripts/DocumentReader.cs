@@ -56,7 +56,7 @@ public class DocumentReader : MonoBehaviour
         handwriting = Find("Ink Free", "Segoe Script", "Segoe Print", "Bradley Hand ITC", "Comic Sans MS");
     }
 
-    static Font Find(params string[] names)
+    public static Font Find(params string[] names)
     {
         string[] installed = Font.GetOSInstalledFontNames();
         foreach (string n in names)

@@ -26,7 +26,7 @@ public class LevelExit : MonoBehaviour
     void Update()
     {
         if (!done || hasNext || Keyboard.current == null || !Keyboard.current.rKey.wasPressedThisFrame) return;
-        Inventory.Clear();
+        Inventory.ClearAll();   // volver a empezar: también se borran los documentos leídos
         UnityEngine.SceneManagement.SceneManager.LoadScene(UnityEngine.SceneManagement.SceneManager.GetActiveScene().buildIndex);
     }
 

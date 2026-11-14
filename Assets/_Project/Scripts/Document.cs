@@ -21,5 +21,10 @@ public class Document : MonoBehaviour
     // Prepara la hoja de antemano para que abrir el documento no cause un tirón
     void Start() => PaperTexture.Get(style);
 
-    public void Read() => DocumentReader.Show(title, text, style, reference, date, author);
+    // Lo lee en pantalla y lo guarda en el inventario (pestaña Documentos) para poder releerlo
+    public void Read()
+    {
+        Inventory.AddDocument(new DocumentEntry { title = title, text = text, style = style, reference = reference, date = date, author = author });
+        DocumentReader.Show(title, text, style, reference, date, author);
+    }
 }

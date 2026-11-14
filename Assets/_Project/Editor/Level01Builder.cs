@@ -705,7 +705,7 @@ public static class Level01Builder
             Padlock padlock = locker.AddComponent<Padlock>();
             padlock.fixedCode = CodeText;
             padlock.giveItem = "llave_escalera";
-            padlock.unlockedMessage = "El candado cede. Dentro hay una llave con una etiqueta: «REJA».";
+            padlock.unlockedMessage = "Candado abierto. Has cogido la llave de la REJA (etiquetada «REJA»).";
             Hook(it.onInteract, padlock.Open);
 
             // Candado visible en la puerta del archivador y etiqueta con la indicación (sin dar el código)
