@@ -8,6 +8,7 @@ public class Padlock : MonoBehaviour
 {
     public string fixedCode;                      // código escrito a mano; vacío = usar el del CodeManager
     public string giveItem;                       // objeto que entrega al abrirse (vacío = ninguno)
+    public string unlockedMessage = "¡Clic! El candado se abrió.";   // lo que ve el jugador al acertar (puede orientarle hacia el siguiente paso)
     public UnityEvent onUnlocked = new UnityEvent();
     public UnityEvent onWrongCode = new UnityEvent();
 
@@ -40,7 +41,7 @@ public class Padlock : MonoBehaviour
         {
             IsOpen = true;
             if (!string.IsNullOrEmpty(giveItem)) Inventory.Add(giveItem);
-            message = "¡Clic! El candado se abrió.";
+            message = unlockedMessage;
             messageTimer = 4f;
             Close();
             onUnlocked.Invoke();

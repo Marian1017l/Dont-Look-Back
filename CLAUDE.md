@@ -10,7 +10,7 @@ Desarrollo de un videojuego de terror 3D en primera persona en Unity.
 - Claude Code está conectado al Editor con el **Unity MCP oficial** (`com.unity.ai.assistant`). No usar las herramientas `Unity_AssetGeneration_*` ni `Unity_PackageManager_ExecuteAction`.
 - Ya existe un **prototipo temporal** hecho con cubos, creado solo para una demostración rápida a clase:
   - `Assets/Scripts/`: GameManager, PlayerController, PlayerInteract, FootstepsEvent, CodeManager, Note, Padlock, ProjectileLauncher, Projectile, DemoHUD, HeartsUI, Checkpoint, DamageZone.
-  - `Assets/Editor/DemoSceneBuilder.cs` (menú "Don't Look Back > Crear escena demo"), y posiblemente `Assets/Scenes/Demo.unity`, `Assets/Prefabs/` y `Assets/Materials/` si se ejecutó el menú.
+  - `Assets/_Project/Prototype/Editor/DemoSceneBuilder.cs` (antes en `Assets/Editor/`; menú "Don't Look Back > Crear escena demo"), y posiblemente `Assets/Scenes/Demo.unity`, `Assets/Prefabs/` y `Assets/Materials/` si se ejecutó el menú.
   - Estos archivos deben evaluarse en la inspección inicial (sección 17): pueden servir como base, reorganizarse o retirarse. **No borrarlos sin consultarme.**
 - Restos de la plantilla de Unity: `Assets/TutorialInfo/`, `Assets/Readme.asset`, `Assets/Scenes/SampleScene.unity`, `Assets/InputSystem_Actions.inputactions`, `Assets/Settings/` (configuración de URP: **no tocar sin revisar**).
 - Contexto académico: el proyecto es para una materia de desarrollo de videojuegos donde se vio creación de objetos (`Instantiate`), simulación de un cañón (tiro parabólico) y pérdida de vida. Conviene que el juego permita mostrar esos temas.
@@ -247,6 +247,25 @@ Es preferible terminar tres o cuatro niveles bien diseñados que diez vacíos. E
 - Salud por golpes (`PlayerHealth`): cada ataque quita 50; dos golpes matan. Vendajes curan. Reemplaza al sistema de corazones en los niveles reales (el prototipo conserva `GameManager`/`HeartsUI`).
 - El fantasma del jumpscare es un objeto temporal (`TEMP_Ghost`) hasta tener el modelo real. No se descargan assets sin autorización (sección 11).
 - Falta por verificar en Unity: todo lo anterior (ver lista de pruebas en el informe del Nivel 1).
+- **Subetapa en curso (solo visual):** rehacer el Nivel 1 con distribución nueva (habitación inicial, pasillo, habitaciones de pacientes, enfermería, almacén, observación, pasillo oscuro). La escena anterior `Level01_Basement.unity` se conserva como respaldo (etiqueta git `antes-visual-nivel1`). No se tocan mecánicas, NPC, IA ni cordura en esta subetapa.
+- **Nivel 1 actual:** menú **Don't Look Back > Crear Nivel 1 (Hospital)** -> `Assets/_Project/Scenes/Level01_Ward.unity` (48x12 m, celdas de 4 m; cuartos de 4x4 y 8x4 m). Recorrido: nota inicial -> aviso junto a la reja -> etiqueta del archivador (almacén) -> nota de enfermería (archivo) -> números 4 (sala de espera), 7 (celda, visible tras el cristal de observación) y 2 (nota) -> candado `472` -> llave -> reja -> pasillo oscuro -> `LevelExit` (`Level02_Service` aún no existe: la pantalla final permite reiniciar con R).
+- **Documentos:** `Document` tiene tipo (`PatientNote`, `MedicalRecord`, `StaffReport`), referencia, fecha y firma; `DocumentReader` dibuja la hoja (IMGUI) con papel generado por código (`PaperTexture`) y tipografías del sistema (Courier New / Ink Free, con respaldo a la de Unity).
+- **Pendiente visual:** números en pared aún en pixel-art (rehacer como trazos a mano / Decal Projector), linterna visible de NomadicUV, más densidad en el pasillo, bake de luz.
+- **Truco de trabajo con el MCP:** Unity no detecta solo los cambios en disco si no tiene foco. Tras editar scripts: `AssetDatabase.ImportAsset(ruta, ForceUpdate)` + `UnityEditor.Compilation.CompilationPipeline.RequestScriptCompilation()`, y esperar a que cambien las fechas de `Library/ScriptAssemblies/*.dll` antes de ejecutar el menú. Para capturas en Play hay que poner `Application.runInBackground = true` o el juego se queda en el fotograma 1.
+
+## 17b. Lore y dirección visual (referencia: Outlast / Amnesia, con identidad propia)
+
+DON'T LOOK BACK es terror psicológico en primera persona en un **hospital psiquiátrico abandonado**.
+
+- Hace años, un paciente empezó a oír una voz que le enseñaba un ritual. El personal lo tomó por otro episodio psicótico.
+- El paciente hizo el ritual dentro del hospital e invocó una entidad capaz de imitar la apariencia de otras personas.
+- La entidad imitó a los pacientes. Hubo paranoia y violencia: nadie sabía quién era humano y quién la entidad.
+- Su objetivo es sumir el hospital en la oscuridad, porque en la oscuridad abandona sus imitaciones y muestra su forma real.
+- **Zonas iluminadas:** se disfraza de pacientes o conocidos, provoca sustos y afecta la cordura.
+- **Zonas completamente oscuras:** muestra su verdadera forma y es una amenaza mortal.
+- El hospital fue abandonado. La historia se descubre poco a poco con documentos, expedientes, notas, grabaciones y computadores; nunca se cuenta todo de golpe. En el Nivel 1 solo se sugiere que algo extraño pasaba antes del abandono.
+
+Reglas visuales: la oscuridad es una herramienta narrativa, no una excusa; el jugador siempre debe reconocer la arquitectura. Paleta: verdes de hospital desaturados, grises, beige envejecido, blancos sucios, marrones de deterioro, negros profundos solo en zonas puntuales, rojo de emergencia solo en momentos clave.
 
 ## 18. Principio final
 

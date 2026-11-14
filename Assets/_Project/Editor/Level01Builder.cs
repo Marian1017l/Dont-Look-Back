@@ -7,15 +7,16 @@ using UnityEngine.Events;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 
-// Menú "Don't Look Back > Crear Nivel 1 (Sótano)".
-// Arma la escena Assets/_Project/Scenes/Level01_Basement.unity con los modelos de los packs.
+// Menú "Don't Look Back > Crear Nivel 1 (Hospital)".
+// Arma la escena Assets/_Project/Scenes/Level01_Ward.unity con los modelos de los packs.
+// (La escena anterior Level01_Basement.unity se conserva sin tocar como respaldo.)
 // El hospital se genera desde el mapa de texto de abajo: cada letra es una habitación,
 // las paredes aparecen solas en los bordes y las "aperturas" son los huecos de puerta.
 // Cada habitación se decora sola con una lista de objetos según su tema (método Dress).
 // Se puede ejecutar de nuevo para regenerar la escena (sobrescribe el archivo).
 public static class Level01Builder
 {
-    const string ScenePath = "Assets/_Project/Scenes/Level01_Basement.unity";
+    const string ScenePath = "Assets/_Project/Scenes/Level01_Ward.unity";
     const string FH = "Assets/FunctionalHorrorProps/Prefabs/";
     const string SP = "Assets/Survival Props/prefabs/";
     const string AS = "Assets/Abandoned_Asylum/Prefabs/";
@@ -25,25 +26,29 @@ public static class Level01Builder
     const string CodeText = "472";   // 4 en la caldera, 7 entre las tuberías, 2 en la nota del archivo
 
     // Mapa: cada letra es una zona. ' ' = vacío. Cada celda mide "cell" metros (se mide del modelo del piso).
-    //  a = cuarto donde despiertas   b = calderas   c = almacén (candado)   d = cuarto eléctrico
-    //  x = pasillo principal
-    //  e = archivo / morgue   f = tuberías   g = depósito   h = escalera (puerta con llave)
+    // Celdas de 4 m: habitaciones de paciente = 1 celda (4x4 m); inicio, espera, enfermería y almacén = 2 celdas (8x4 m).
+    //  Norte:  g = sala de espera (primera pista)   n = enfermería   b, c = pacientes   o = observación   f = celda de aislamiento
+    //  Centro: x = pasillo principal   y = pasillo oscuro (tras la reja)   h = escalera de salida
+    //  Sur:    a = cuarto donde despiertas   m = almacén médico (candado)   e = archivo   r = baño
     static readonly string[] Map =
     {
-        "aaabbbcccddd",
-        "aaabbbcccddd",
-        "xxxxxxxxxxxx",
-        "eeefffggghhh",
-        "eeefffggghhh",
+        "ggnnbcof    ",
+        "xxxxxxxxyyyh",
+        "aammer      ",
     };
 
     // Huecos de puerta: columna, fila y lado (N/E/S/W) de la celda. La fila 0 es el norte.
     static readonly (int c, int r, char d)[] Openings =
     {
-        (1, 1, 'S'), (4, 1, 'S'), (7, 1, 'S'), (10, 1, 'S'),   // habitaciones norte <-> pasillo
-        (1, 3, 'N'), (4, 3, 'N'), (7, 3, 'N'), (10, 3, 'N'),   // habitaciones sur <-> pasillo (h = puerta con llave)
-        (2, 0, 'E'), (5, 1, 'E'), (8, 0, 'E'),                 // a-b, b-c, c-d
-        (2, 4, 'E'), (5, 3, 'E'),                              // e-f, f-g
+        (1, 0, 'S'), (3, 0, 'S'), (4, 0, 'S'), (5, 0, 'S'), (6, 0, 'S'),   // espera, enfermería, pacientes y observación -> pasillo
+        (1, 2, 'N'), (2, 2, 'N'), (4, 2, 'N'), (5, 2, 'N'),                // inicio (frente a la espera), almacén, archivo y baño -> pasillo
+        (7, 1, 'E'), (10, 1, 'E'),                                         // reja con llave al pasillo oscuro, y vano a la escalera
+    };
+
+    // Paredes con cristal (no se atraviesan): la enfermería mira al pasillo y la observación mira a la celda
+    static readonly (int c, int r, char d)[] Windows =
+    {
+        (2, 0, 'S'), (6, 0, 'E'),
     };
 
     static readonly (int dc, int dr, char name)[] Dirs = { (0, -1, 'N'), (1, 0, 'E'), (0, 1, 'S'), (-1, 0, 'W') };
@@ -51,15 +56,16 @@ public static class Level01Builder
     // Tema de cada zona: nombre del grupo en la jerarquía y lista de objetos con los que se decora
     static readonly Dictionary<char, string> RoomNames = new Dictionary<char, string>
     {
-        { 'a', "A_Wake" }, { 'b', "B_Boilers" }, { 'c', "C_Storage" }, { 'd', "D_Electric" }, { 'x', "X_Corridor" },
-        { 'e', "E_Archive" }, { 'f', "F_Pipes" }, { 'g', "G_Deposit" }, { 'h', "H_Stairs" },
+        { 'a', "A_Wake" }, { 'g', "G_Waiting" }, { 'n', "N_NurseStation" }, { 'b', "B_Patient1" }, { 'c', "C_Patient2_Escape" },
+        { 'o', "O_Observation" }, { 'f', "F_IsolationCell" }, { 'm', "M_MedicalStorage" }, { 'e', "E_Archive" }, { 'r', "R_Bathroom" },
+        { 'x', "X_Corridor" }, { 'y', "Y_DarkHall" }, { 'h', "H_Stairs" },
     };
 
     static float cell = 4f;       // ancho de una celda (medido)
     static float wallH = 3.2f;    // alto de pared (medido)
     static float wallBias, doorBias;
     static Material concrete;
-    static GameObject toolChestBoilers, drawerArchive, tvDeposit;
+    static GameObject toolChestBath, drawerArchive, tvNurse, gateTable;
 
     static Transform floors, walls, ceilings, pillars, props, lamps, pickups, documents, doorsGroup, clues, triggers, encounters;
     static readonly Dictionary<string, Transform> rooms = new Dictionary<string, Transform>();
@@ -68,7 +74,7 @@ public static class Level01Builder
     static readonly List<Vector2> doorPoints = new List<Vector2>();
     static System.Random rng;
 
-    [MenuItem("Don't Look Back/Crear Nivel 1 (Sótano)")]
+    [MenuItem("Don't Look Back/Crear Nivel 1 (Hospital)")]
     public static void Build()
     {
         if (EditorApplication.isPlaying || EditorApplication.isPlayingOrWillChangePlaymode)
@@ -91,7 +97,7 @@ public static class Level01Builder
         rng = new System.Random(1017);   // misma decoración cada vez que se regenera
 
         MeasureModules();
-        concrete = CreateMaterial("Concreto_Oscuro", new Color(0.3f, 0.3f, 0.28f));
+        concrete = CreateMaterial("Concreto_Hospital", new Color(0.46f, 0.46f, 0.43f));   // techo y pilares: lo bastante claros para recibir la luz de las lámparas
 
         Transform systems = T("_Systems");
         Transform environment = T("Environment");
@@ -190,8 +196,16 @@ public static class Level01Builder
 
                     Vector3 edge = center + new Vector3(d.dc * cell / 2f, 0, -d.dr * cell / 2f);
                     bool vertical = d.name == 'E' || d.name == 'W';
-                    string name = (opening ? "Doorway_" : "Wall_") + c + "_" + r + "_" + d.name;
-                    PlaceWall(opening ? "hospital_wall_doorway" : "hospital_wall_solid", name, edge, vertical, !opening);
+                    bool window = !opening && (IsWindow(c, r, d.name) || IsWindow(c + d.dc, r + d.dr, Opposite(d.name)));
+                    string name = (opening ? "Doorway_" : window ? "Window_" : "Wall_") + c + "_" + r + "_" + d.name;
+
+                    // El modelo tiene una cara sucia (+Z, o +X si está girado) y otra limpia: la sucia debe mirar hacia el cuarto.
+                    // Si solo un lado es habitación, ese lado; si no, hacia esta celda (pasillo/exterior).
+                    bool faceThere = IsRoom(there) && !IsRoom(here);
+                    Vector3 toThere = new Vector3(d.dc, 0, -d.dr);
+                    Vector3 face = faceThere ? toThere : -toThere;
+                    bool flip = vertical ? face.x < 0 : face.z < 0;
+                    PlaceWall(opening ? "hospital_wall_doorway" : window ? "hospital_wall_window" : "hospital_wall_solid", name, edge, vertical, !opening, flip);
 
                     // Esquinas: cada extremo de pared lleva un pilar para tapar la unión
                     Vector3 a = vertical ? edge + new Vector3(0, 0, cell / 2f) : edge + new Vector3(cell / 2f, 0, 0);
@@ -212,12 +226,14 @@ public static class Level01Builder
         }
     }
 
-    static void PlaceWall(string prefab, string name, Vector3 edge, bool vertical, bool addCollider)
+    static bool IsRoom(char c) => c != ' ' && c != 'x' && c != 'y';
+
+    static void PlaceWall(string prefab, string name, Vector3 edge, bool vertical, bool addCollider, bool flip)
     {
         GameObject wall = Spawn(FH + prefab + ".prefab", walls);
         if (wall == null) return;
         wall.name = name;
-        wall.transform.rotation = Quaternion.Euler(0, (vertical ? 90f : 0f) + wallBias, 0);
+        wall.transform.rotation = Quaternion.Euler(0, (vertical ? 90f : 0f) + wallBias + (flip ? 180f : 0f), 0);
         SnapXZ(wall, edge.x, edge.z);
         SnapY(wall, 0f, false);
 
@@ -242,42 +258,38 @@ public static class Level01Builder
 
     // ---------------------------------------------------------------- Atmósfera e iluminación
 
+    static readonly Color Warm = new Color(1f, 0.78f, 0.52f);
+    static readonly Color Cold = new Color(0.7f, 0.86f, 1f);
+    static readonly Color Sick = new Color(0.72f, 1f, 0.8f);
+    static readonly Color Alarm = new Color(1f, 0.14f, 0.08f);
+    static readonly Color ExitGreen = new Color(0.25f, 1f, 0.45f);
+
     static void BuildAtmosphere(Transform lighting)
     {
         RenderSettings.skybox = null;
         RenderSettings.ambientMode = AmbientMode.Flat;
-        RenderSettings.ambientLight = new Color(0.32f, 0.34f, 0.38f);   // luz base: se ve todo, con aire frío
+        RenderSettings.ambientLight = new Color(0.17f, 0.19f, 0.23f);   // base fría: sin linterna ni lámparas se reconoce la forma de las cosas
         RenderSettings.fog = true;
         RenderSettings.fogMode = FogMode.ExponentialSquared;
-        RenderSettings.fogColor = new Color(0.1f, 0.11f, 0.12f);
-        RenderSettings.fogDensity = 0.006f;
+        RenderSettings.fogColor = new Color(0.11f, 0.12f, 0.14f);
+        RenderSettings.fogDensity = 0.01f;
 
-        string path = "Assets/_Project/Settings/Level01_Volume.asset";
-        if (AssetDatabase.LoadAssetAtPath<VolumeProfile>(path) != null) AssetDatabase.DeleteAsset(path);
-        VolumeProfile profile = ScriptableObject.CreateInstance<VolumeProfile>();
-        AssetDatabase.CreateAsset(profile, path);
-
-        Vignette vignette = profile.Add<Vignette>(true);
-        vignette.intensity.Override(0.3f);
+        // Postproceso global (sutil): tonemapping neutral, viñeta, grano, color y bloom leve
+        VolumeProfile profile = NewProfile("Assets/_Project/Settings/Level01_Volume.asset");
+        AddEffect<Tonemapping>(profile).mode.Override(TonemappingMode.Neutral);
+        Vignette vignette = AddEffect<Vignette>(profile);
+        vignette.intensity.Override(0.28f);
         vignette.smoothness.Override(0.55f);
-        AssetDatabase.AddObjectToAsset(vignette, profile);
-
-        FilmGrain grain = profile.Add<FilmGrain>(true);
+        FilmGrain grain = AddEffect<FilmGrain>(profile);
         grain.type.Override(FilmGrainLookup.Medium3);
-        grain.intensity.Override(0.25f);
-        AssetDatabase.AddObjectToAsset(grain, profile);
-
-        ColorAdjustments color = profile.Add<ColorAdjustments>(true);
-        color.saturation.Override(-15f);
-        color.contrast.Override(8f);
-        color.postExposure.Override(0.9f);
-        AssetDatabase.AddObjectToAsset(color, profile);
-
-        Bloom bloom = profile.Add<Bloom>(true);
-        bloom.intensity.Override(0.25f);
+        grain.intensity.Override(0.2f);
+        ColorAdjustments color = AddEffect<ColorAdjustments>(profile);
+        color.saturation.Override(-12f);
+        color.contrast.Override(10f);
+        color.postExposure.Override(0.5f);
+        Bloom bloom = AddEffect<Bloom>(profile);
+        bloom.intensity.Override(0.3f);
         bloom.threshold.Override(1f);
-        AssetDatabase.AddObjectToAsset(bloom, profile);
-
         EditorUtility.SetDirty(profile);
 
         GameObject volume = new GameObject("GlobalVolume");
@@ -285,74 +297,141 @@ public static class Level01Builder
         Volume v = volume.AddComponent<Volume>();
         v.isGlobal = true;
         v.sharedProfile = profile;
+
+        // Pasillo oscuro: volumen local que baja la exposición y cierra la viñeta al entrar (sin luces de techo)
+        VolumeProfile dark = NewProfile("Assets/_Project/Settings/Level01_DarkHall_Volume.asset");
+        AddEffect<ColorAdjustments>(dark).postExposure.Override(-0.9f);
+        Vignette darkVignette = AddEffect<Vignette>(dark);
+        darkVignette.intensity.Override(0.5f);
+        darkVignette.smoothness.Override(0.6f);
+        EditorUtility.SetDirty(dark);
+
+        GameObject darkGo = new GameObject("DarkHall_Volume");
+        darkGo.transform.SetParent(lighting);
+        Vector3 dc = Cell(9, 1);
+        darkGo.transform.position = new Vector3(dc.x, wallH / 2f, dc.z);
+        BoxCollider darkBox = darkGo.AddComponent<BoxCollider>();
+        darkBox.isTrigger = true;
+        darkBox.size = new Vector3(cell * 3f, wallH, cell);
+        Volume dv = darkGo.AddComponent<Volume>();
+        dv.isGlobal = false;
+        dv.blendDistance = 3f;
+        dv.priority = 1f;
+        dv.sharedProfile = dark;
     }
 
+    static VolumeProfile NewProfile(string path)
+    {
+        if (AssetDatabase.LoadAssetAtPath<VolumeProfile>(path) != null) AssetDatabase.DeleteAsset(path);
+        VolumeProfile profile = ScriptableObject.CreateInstance<VolumeProfile>();
+        AssetDatabase.CreateAsset(profile, path);
+        return profile;
+    }
+
+    static T AddEffect<T>(VolumeProfile profile) where T : VolumeComponent
+    {
+        T effect = profile.Add<T>(true);
+        AssetDatabase.AddObjectToAsset(effect, profile);
+        return effect;
+    }
+
+    // Cada espacio lleva sus propias luminarias (con modelo). Los colores y estados cambian de un cuarto a otro:
+    // fluorescentes fríos, lámparas cálidas, luces enfermizas que parpadean, lámparas muertas y luces de emergencia.
     static void BuildLamps()
     {
-        Color warm = new Color(1f, 0.8f, 0.58f), cold = new Color(0.7f, 0.88f, 1f), sick = new Color(0.72f, 1f, 0.78f);
+        string neon = AS + "NeonLamp.prefab", cage = FH + "hanging_cage_lamp.prefab", oil = FH + "oil_table_lamp.prefab", lantern = FH + "hurricane_lantern.prefab", small = AS + "SingleLight.prefab";
 
-        // Pasillo (fila 2): una lámpara cada 8 m, una muerta y dos que parpadean
-        Lamp(1, 2, 0, true, false, warm, 1.4f);
-        Lamp(3, 2, 0, true, false, cold, 1.3f);
-        Lamp(5, 2, 0, false, false, warm, 0f);
-        Lamp(7, 2, 0, true, true, cold, 1.5f);
-        Lamp(9, 2, 0, true, false, warm, 1.3f);
-        Lamp(11, 2, 0, true, true, sick, 1.4f);
+        // Pasillo principal: fluorescentes fríos, uno muerto junto al centro, uno que parpadea y una zona de emergencia roja ante la reja
+        Fixture(neon, "Corridor_A", Cell(0, 1, 1.0f, 0), wallH, true, 0, true, Cold, 14f, 10f, false, false);
+        Fixture(neon, "Corridor_B", Cell(2, 1, 0.8f, 0), wallH, true, 0, true, Cold, 14f, 10f, false, true);
+        Fixture(neon, "Corridor_C", Cell(4, 1, 0f, 0), wallH, true, 0, false, Cold, 0f, 0f, false, false);
+        Fixture(neon, "Corridor_D", Cell(5, 1, 1.5f, 0), wallH, true, 0, true, Sick, 12f, 10f, false, true);
+        Fixture(small, "Emergency_Gate", Cell(7, 1, -0.4f, 1.85f), 2.5f, false, 0, true, Alarm, 5f, 7f, false, false);
+        Fixture(small, "Exit_Gate", Cell(7, 1, 0.9f, 1.85f), 2.5f, false, 0, true, ExitGreen, 3.5f, 5f, false, false);
 
-        // Habitaciones: lámpara en el centro (entre las dos filas) y dos luces de relleno a los lados
-        Room(1, 0, warm, false);    // despertar
-        Room(4, 0, warm, true);     // calderas
-        Room(7, 0, cold, false);    // almacén
-        Room(10, 0, sick, true);    // eléctrico
-        Room(1, 3, cold, false);    // archivo
-        Room(4, 3, warm, true);     // tuberías
-        Room(7, 3, warm, false);    // depósito
-        Room(10, 3, new Color(1f, 0.55f, 0.45f), false);   // escalera, tono rojizo
+        // A: habitación inicial (lámpara cálida y débil que parpadea + lámpara de mesa junto a la cama)
+        Fixture(cage, "Wake", Cell(0, 2, 2.0f, 0), wallH, true, 0, true, Warm, 11f, 8f, true, true);
+        Fixture(oil, "Wake_Bedside", Cell(0, 2, -1.5f, 0f), 0.63f, false, 0, true, Warm, 4f, 4f, false, false);
+
+        // G: sala de espera (verde frío; un foco bajo ilumina apenas la pared de la pista)
+        Fixture(cage, "Waiting", Cell(0, 0, 2.0f, 0), wallH, true, 0, true, new Color(0.78f, 0.95f, 0.9f), 9f, 8f, false, true);
+        Accent("Waiting_ClueSpot", Cell(1, 0, 0f, 1.2f), 2.3f, Warm, 5f, 4f, false);
+
+        // N: enfermería (fluorescente frío, lámpara de escritorio cálida, emergencia roja en la esquina)
+        Fixture(neon, "Nurse", Cell(2, 0, 2.0f, 0), wallH, true, 0, true, Cold, 14f, 9f, false, false);
+        Fixture(oil, "Nurse_Desk", Cell(2, 0, 0.9f, 1.4f), 0.8f, false, 0, true, Warm, 4f, 4f, false, false);
+        Fixture(small, "Emergency_Nurse", Cell(3, 0, 1.7f, 1.85f), 2.5f, false, 0, true, Alarm, 3.5f, 6f, false, false);
+
+        // B / C: habitaciones de pacientes (una cálida; otra con la lámpara muerta e iluminada por un farol del suelo)
+        Fixture(cage, "Patient1", Cell(4, 0, 0, 0), wallH, true, 0, true, Warm, 10f, 7f, false, false);
+        Fixture(cage, "Patient2_Dead", Cell(5, 0, 0, 0), wallH, true, 0, false, Warm, 0f, 0f, false, false);
+        Fixture(lantern, "Patient2_Lantern", Cell(5, 0, -0.8f, -0.9f), 0f, false, 0, true, Warm, 6f, 6f, false, true);
+
+        // O: sala de observación (azulada, parpadea) y F: celda de aislamiento (casi sin luz: azul tenue y un punto rojo)
+        Fixture(neon, "Observation", Cell(6, 0, 0, 0), wallH, true, 0, true, new Color(0.6f, 0.8f, 1f), 10f, 7f, false, true);
+        Accent("Cell_Dim", Cell(7, 0, 0, 0), 2.4f, new Color(0.55f, 0.65f, 0.85f), 5f, 6f, false);
+        Fixture(small, "Emergency_Cell", Cell(7, 0, 1.5f, -1.5f), 2.4f, false, 0, true, Alarm, 2.5f, 4f, false, false);
+
+        // M: almacén médico, E: archivo, R: baño
+        Fixture(neon, "Storage", Cell(2, 2, 2.0f, 0), wallH, true, 0, true, Cold, 12f, 9f, false, false);
+        Fixture(cage, "Archive", Cell(4, 2, 0, 0), wallH, true, 0, true, Warm, 9f, 7f, false, false);
+        Fixture(oil, "Archive_Desk", Cell(4, 2, 1.2f, 1.0f), 0.8f, false, 0, true, Warm, 3.5f, 4f, false, false);
+        Fixture(neon, "Bathroom", Cell(5, 2, 0, 0), wallH, true, 0, true, Sick, 9f, 7f, false, true);
+
+        // Pasillo oscuro: lámparas muertas, sin luz de techo. Solo una luz verde lejana y la linterna
+        Fixture(cage, "Dark_A", Cell(8, 1, 0, 0), wallH, true, 0, false, Warm, 0f, 0f, false, false);
+        Fixture(cage, "Dark_B", Cell(9, 1, 0, 0), wallH, true, 0, false, Warm, 0f, 0f, false, false);
+        Fixture(small, "Exit_Far", Cell(10, 1, 1.5f, 1.85f), 2.5f, false, 0, true, ExitGreen, 4f, 6f, false, false);
+
+        // H: escalera de salida (rojizo)
+        Fixture(cage, "Stairs", Cell(11, 1, 0, 0), wallH, true, 0, true, new Color(1f, 0.55f, 0.45f), 8f, 6f, false, false);
     }
 
-    static void Room(int midCol, int topRow, Color color, bool flicker)
+    // Luz sin modelo (un punto de luz puro): rellenos y focos de acento
+    static void Accent(string name, Vector3 pos, float y, Color color, float intensity, float range, bool flicker)
     {
-        Lamp(midCol, topRow, -cell / 2f, true, flicker, color, 1.5f);
-        Fill(midCol - 1, topRow, -cell / 2f, color, 1.0f);
-        Fill(midCol + 1, topRow, -cell / 2f, color, 1.0f);
-    }
-
-    static void Fill(int c, int r, float dz, Color color, float intensity)
-    {
-        GameObject go = new GameObject("Fill_" + c + "_" + r);
+        GameObject go = new GameObject("Light_" + name);
         go.transform.SetParent(lamps);
-        Vector3 p = Cell(c, r, 0, dz);
-        go.transform.position = new Vector3(p.x, 2.3f, p.z);
+        go.transform.position = new Vector3(pos.x, y, pos.z);
         Light l = go.AddComponent<Light>();
         l.type = LightType.Point;
-        l.range = cell * 2.8f;
-        l.intensity = intensity * 2.2f;
         l.color = color;
+        l.intensity = intensity;
+        l.range = range;
         l.shadows = LightShadows.None;
+        if (flicker) go.AddComponent<FlickerLight>().minFactor = 0.45f;
     }
 
-    static void Lamp(int c, int r, float dz, bool lit, bool flicker, Color color, float intensity)
+    // Luminaria con modelo: usa la Light que trae el prefab (o crea una), la ajusta y la deja encendida o "muerta"
+    static GameObject Fixture(string prefab, string name, Vector3 pos, float y, bool top, float yaw, bool lit, Color color, float intensity, float range, bool shadows, bool flicker)
     {
-        Vector3 pos = Cell(c, r, 0, dz);
-        GameObject lamp = Spawn(FH + "hanging_cage_lamp.prefab", lamps);
-        if (lamp != null)
-        {
-            lamp.name = "Lamp_" + c + "_" + r + (lit ? "" : "_Dead");
-            SnapXZ(lamp, pos.x, pos.z);
-            SnapY(lamp, wallH, true);
-        }
-        if (!lit) return;
+        GameObject go = Spawn(prefab, lamps);
+        if (go == null) return null;
+        go.name = "Lamp_" + name + (lit ? "" : "_Dead");
+        go.transform.rotation = Quaternion.Euler(0, yaw, 0);
+        SnapXZ(go, pos.x, pos.z);
+        SnapY(go, y, top);
 
-        GameObject light = new GameObject("Light_" + c + "_" + r);
-        light.transform.SetParent(lamp != null ? lamp.transform : lamps);
-        light.transform.position = new Vector3(pos.x, wallH - 0.8f, pos.z);
-        Light l = light.AddComponent<Light>();
-        l.type = LightType.Point;
-        l.range = cell * 3f;
-        l.intensity = intensity * 3f;
-        l.color = color;
-        l.shadows = LightShadows.None;
-        if (flicker) { FlickerLight f = light.AddComponent<FlickerLight>(); f.minFactor = 0.35f; }
+        Light[] lights = go.GetComponentsInChildren<Light>(true);
+        Light main;
+        if (lights.Length > 0) main = lights[0];
+        else
+        {
+            main = new GameObject("Light").AddComponent<Light>();
+            main.transform.SetParent(go.transform, true);
+        }
+        for (int i = 1; i < lights.Length; i++) lights[i].enabled = false;   // un solo foco por lámpara
+
+        Bounds b = GetBounds(go);
+        main.transform.position = top ? new Vector3(b.center.x, b.min.y - 0.3f, b.center.z) : new Vector3(b.center.x, b.max.y + 0.15f, b.center.z);
+        main.type = LightType.Point;
+        main.color = color;
+        main.intensity = intensity;
+        main.range = range;
+        main.shadows = shadows ? LightShadows.Soft : LightShadows.None;
+        main.enabled = lit;
+        if (lit && flicker) main.gameObject.AddComponent<FlickerLight>().minFactor = 0.45f;
+        return go;
     }
 
     // ---------------------------------------------------------------- Jugador
@@ -361,9 +440,9 @@ public static class Level01Builder
     {
         GameObject player = new GameObject("Player");
         player.tag = "Player";
-        Vector3 start = Cell(1, 0);
+        Vector3 start = Cell(1, 2, -0.4f, 0.3f);   // habitación inicial: despiertas mirando hacia la cama y la primera nota
         player.transform.position = new Vector3(start.x, 0.05f, start.z);
-        player.transform.rotation = Quaternion.Euler(0, 90, 0);   // mira hacia el interior del cuarto
+        player.transform.rotation = Quaternion.Euler(0, 270, 0);   // mira al oeste: cama y nota delante, la puerta a la derecha
         reserved.Add(new Vector2(start.x, start.z));
         CharacterController cc = player.AddComponent<CharacterController>();
         cc.height = 1.8f;
@@ -409,31 +488,58 @@ public static class Level01Builder
 
     // ---------------------------------------------------------------- Objetos clave y decoración automática
 
-    // Muebles que sostienen notas u objetos del puzzle
+    // Muebles que sostienen notas u objetos del puzzle, y las piezas que dan identidad a cada cuarto
     static void BuildKeyProps()
     {
-        Prop("hospital_bed", "A_Wake", 0, 0, -0.4f, 0f, 90f);
-        Prop("wheelchair", "A_Wake", 2, 1, 0f, 0.4f, 200f);
-        toolChestBoilers = Prop("tool_chest", "B_Boilers", 5, 0, 0f, 1.2f, 180f);
-        Prop(AS + "BigBoiler.prefab", "B_Boilers", 4, 0, 0f, -2f, 0f);
-        Prop("fuse_cabinet", "D_Electric", 10, 0, 0f, 1.5f, 180f);
-        Prop("hospital_bed", "E_Archive", 0, 3, -0.3f, 0f, 90f);
-        drawerArchive = Prop("bedside_drawer", "E_Archive", 0, 4, 0f, -1.2f, 90f);
-        tvDeposit = Prop("crt_television", "G_Deposit", 8, 4, 0.6f, -1.3f, 0f);
+        // A: habitación inicial. Cama junto a la pared oeste, mesita, silla de ruedas y colchón tirado
+        Prop("hospital_bed", "A_Wake", 0, 2, -0.9f, -1.0f, 90f);
+        Prop("wheelchair", "A_Wake", 1, 2, 1.0f, 0.9f, 200f);
+        Prop(AS + "Mattress.prefab", "A_Wake", 1, 2, -0.5f, -1.0f, 25f);
+
+        // G: sala de espera. La silla de ruedas mira la pared donde está la primera pista
+        Prop("wheelchair", "G_Waiting", 1, 0, 0f, 0.2f, 0f);
+
+        // N: enfermería. Mostrador con silla, archivadores y el televisor con la hoja de turno
+        Prop(AS + "TableOffice.prefab", "N_NurseStation", 2, 0, 0.9f, 1.4f, 180f);
+        Prop(AS + "ChairOffice.prefab", "N_NurseStation", 2, 0, 0.9f, 0.5f, 160f);
+        tvNurse = Prop("crt_television", "N_NurseStation", 3, 0, 0.7f, 1.4f, 180f);
+        Prop("filing_cabinet", "N_NurseStation", 3, 0, -1.2f, 1.4f, 180f);
+
+        // B / C: habitaciones de pacientes
+        Prop("hospital_bed", "B_Patient1", 4, 0, -0.9f, 0.6f, 90f);
+        Prop("bedside_drawer", "B_Patient1", 4, 0, -1.5f, -0.6f, 90f);
+        Prop("hospital_bed", "C_Patient2_Escape", 5, 0, 1.2f, 0.4f, 180f);   // junto a la pared este, sin tapar la puerta
+        Prop("boarded_door", "C_Patient2_Escape", 5, 0, 0.6f, 1.85f, 180f);
+
+        // O / F: observación (mesa y silla) y celda de aislamiento (colchón en el suelo)
+        Prop(AS + "TableWhite.prefab", "O_Observation", 6, 0, 0f, 1.3f, 180f);
+        Prop(AS + "ChairOffice.prefab", "O_Observation", 6, 0, 0f, 0.5f, 170f);
+        Prop(AS + "Mattress.prefab", "F_IsolationCell", 7, 0, -0.6f, -0.5f, 80f);
+
+        // Pasillo: carrito junto a la reja con el aviso de seguridad (primera pista hacia el almacén)
+        gateTable = Prop("instrument_trolley", "X_Corridor", 7, 1, -0.9f, -1.5f, 0f);
+
+        // E: archivo (escritorio que sostiene el registro) y R: baño (cofre de mantenimiento)
+        drawerArchive = Prop(AS + "TableOffice.prefab", "E_Archive", 4, 2, -0.9f, -1.3f, 0f);
+        toolChestBath = Prop("tool_chest", "R_Bathroom", 5, 2, 0.9f, -1.3f, 0f);
     }
 
     static void DressRooms()
     {
         // letra, objetos del tema, cuántos junto a las paredes, cuántos en el centro
-        Dress('a', new[] { FH + "instrument_trolley.prefab", FH + "medicine_cabinet.prefab", FH + "bedside_drawer.prefab", AS + "Cupboard.prefab", AS + "Sink_V1.prefab", AS + "CurtainsMedic.prefab", AS + "Crutches.prefab", AS + "Box_V1.prefab", AS + "ChairWhite.prefab", AS + "TableSmall.prefab" }, 8, 2);
-        Dress('b', new[] { AS + "Tank.prefab", AS + "Tank_V2.prefab", AS + "Pipe.prefab", AS + "Box_V1.prefab", AS + "Box_V2.prefab", AS + "CanOld.prefab", AS + "CanOld_Damaged.prefab", AS + "Heater.prefab", AS + "BigKettle.prefab", FH + "bench_vise.prefab", FH + "tool_chest.prefab", FH + "wringer_washing_machine.prefab" }, 10, 2);
-        Dress('c', new[] { AS + "BigShelf_Stock.prefab", AS + "BigShelf.prefab", AS + "Box_V1.prefab", AS + "Box_V2.prefab", AS + "MedRack.prefab", AS + "MedRack_V2.prefab", FH + "filing_cabinet.prefab", FH + "tool_chest.prefab", AS + "CaseMetallic.prefab", AS + "SmallMetalicCase.prefab" }, 11, 3);
-        Dress('d', new[] { FH + "desk_fan.prefab", FH + "crt_television.prefab", FH + "tesla_coil.prefab", FH + "valve_radio.prefab", AS + "TableOffice.prefab", AS + "ChairOffice.prefab", AS + "PC_Monitor.prefab", AS + "Cupboard.prefab", AS + "Heater.prefab" }, 9, 3);
-        Dress('x', new[] { AS + "Bench.prefab", AS + "WheelChair.prefab", FH + "wheelchair.prefab", AS + "SheetRack.prefab", AS + "MorgueWheelBed.prefab", AS + "Crutches.prefab", FH + "instrument_trolley.prefab", AS + "Box_V1.prefab" }, 22, 0);
-        Dress('e', new[] { AS + "MorgueBox.prefab", AS + "MorgueWheelBed.prefab", AS + "SurgeryTable.prefab", FH + "hospital_bed.prefab", FH + "wooden_coffin.prefab", AS + "MedRack.prefab", FH + "instrument_trolley.prefab", AS + "SurgeryWheelBad.prefab" }, 9, 3);
-        Dress('f', new[] { AS + "Toilet.prefab", AS + "Sink_V1.prefab", AS + "Bath.prefab", AS + "Pipe.prefab", AS + "CurtainsMedic.prefab", FH + "clawfoot_bath.prefab", FH + "chain_flush_toilet.prefab", FH + "tool_chest.prefab" }, 9, 2);
-        Dress('g', new[] { AS + "Sofa.prefab", AS + "Sofa_Chair.prefab", AS + "Cupboard.prefab", AS + "Statue.prefab", FH + "grandfather_clock.prefab", FH + "rocking_chair.prefab", FH + "crt_television.prefab", FH + "wooden_coffin.prefab", AS + "TableSmall.prefab" }, 10, 3);
-        Dress('h', new[] { AS + "Statue.prefab", AS + "Box_V1.prefab", AS + "WheelChair.prefab", FH + "candelabrum.prefab", AS + "Heater.prefab", FH + "hospital_bed.prefab" }, 7, 1);
+        Dress('a', new[] { FH + "instrument_trolley.prefab", FH + "medicine_cabinet.prefab", FH + "bedside_drawer.prefab", AS + "Cupboard.prefab", AS + "Sink_V1.prefab", AS + "CurtainsMedic.prefab", AS + "Crutches.prefab", AS + "Box_V1.prefab", AS + "ChairWhite.prefab", AS + "TableSmall.prefab", AS + "Table_Bed.prefab", AS + "Pillow.prefab" }, 10, 2);
+        Dress('g', new[] { AS + "Sofa.prefab", AS + "Bench.prefab", AS + "ChairWhite.prefab", AS + "ChairLeather.prefab", AS + "TableSmall.prefab", FH + "grandfather_clock.prefab", FH + "rocking_chair.prefab", AS + "Crutches.prefab", AS + "Box_V1.prefab", AS + "MirrorShelf.prefab" }, 10, 2);
+        Dress('n', new[] { FH + "filing_cabinet.prefab", FH + "medicine_cabinet.prefab", AS + "MedRack.prefab", AS + "Cupboard.prefab", FH + "desk_fan.prefab", AS + "ChairOffice.prefab", FH + "instrument_trolley.prefab", AS + "PC_Monitor.prefab", AS + "Box_V1.prefab", AS + "Fridge.prefab", AS + "TableSmall.prefab" }, 11, 1);
+        Dress('b', new[] { FH + "bedside_drawer.prefab", AS + "ChairWhite.prefab", AS + "Cupboard.prefab", AS + "TableSmall.prefab", AS + "CurtainsMedic.prefab", AS + "Crutches.prefab", AS + "Table_Bed.prefab", AS + "Box_V2.prefab", AS + "Pillow.prefab" }, 6, 1);
+        Dress('c', new[] { FH + "bedside_drawer.prefab", AS + "ChairWhite.prefab", AS + "Cupboard.prefab", AS + "CurtainsMedic.prefab", AS + "Crutches.prefab", AS + "Box_V1.prefab", AS + "Mattress.prefab", AS + "Pillow.prefab", FH + "rocking_chair.prefab", FH + "medicine_cabinet.prefab" }, 7, 1);
+        Dress('o', new[] { AS + "ChairOffice.prefab", AS + "PC_Monitor.prefab", AS + "Television.prefab", AS + "MedRack.prefab", AS + "Cupboard.prefab", FH + "desk_fan.prefab", AS + "Box_V1.prefab" }, 6, 1);
+        Dress('f', new[] { AS + "Mattress.prefab", AS + "Pillow.prefab", AS + "Crutches.prefab", AS + "ChairWhite.prefab", AS + "Box_V2.prefab" }, 3, 0);
+        Dress('m', new[] { AS + "BigShelf_Stock.prefab", AS + "BigShelf.prefab", AS + "Box_V1.prefab", AS + "Box_V2.prefab", AS + "MedRack.prefab", AS + "MedRack_V2.prefab", FH + "tool_chest.prefab", AS + "CaseMetallic.prefab", AS + "SmallMetalicCase.prefab", AS + "Cupboard.prefab" }, 12, 2);
+        Dress('e', new[] { FH + "filing_cabinet.prefab", AS + "Cupboard.prefab", AS + "ChairOffice.prefab", AS + "BigShelf.prefab", AS + "Box_V1.prefab", AS + "Box_V2.prefab", AS + "MedRack.prefab", FH + "desk_fan.prefab", AS + "Heater.prefab" }, 8, 1);
+        Dress('r', new[] { AS + "Toilet.prefab", AS + "Sink_V1.prefab", AS + "Bath.prefab", FH + "clawfoot_bath.prefab", FH + "chain_flush_toilet.prefab", AS + "Pipe.prefab", AS + "CurtainsMedic.prefab", AS + "MirrorShelf.prefab", AS + "Heater.prefab" }, 8, 0);
+        Dress('x', new[] { AS + "Bench.prefab", AS + "WheelChair.prefab", FH + "wheelchair.prefab", AS + "SheetRack.prefab", AS + "MorgueWheelBed.prefab", AS + "Crutches.prefab", FH + "instrument_trolley.prefab", AS + "Box_V1.prefab", FH + "filing_cabinet.prefab", FH + "medicine_cabinet.prefab" }, 28, 0);
+        Dress('y', new[] { AS + "WheelChair.prefab", AS + "Box_V1.prefab", AS + "Box_V2.prefab", AS + "Crutches.prefab", AS + "CanOld_Damaged.prefab", AS + "Bench.prefab" }, 6, 0);
+        Dress('h', new[] { AS + "Box_V1.prefab", AS + "WheelChair.prefab", FH + "candelabrum.prefab", AS + "Heater.prefab", FH + "hospital_bed.prefab" }, 5, 1);
     }
 
     // Coloca objetos del tema en los bordes y el centro de la zona, sin tapar puertas ni objetos del puzzle
@@ -554,39 +660,43 @@ public static class Level01Builder
     static void BuildGameplay(Flashlight flashlight, PlayerHealth health)
     {
         // --- Mesita de noche del cuarto de despertar (sostiene la primera nota)
-        GameObject drawer = Prop("bedside_drawer", "A_Wake", 0, 1, -0.6f, -0.4f, 90f);
+        GameObject drawer = Prop("bedside_drawer", "A_Wake", 0, 2, -1.5f, 0.0f, 90f);
 
         // --- Baterías y botiquines (en el suelo, con un destello tenue para encontrarlos)
-        Battery(Cell(5, 0, 0.6f, 0.9f), "Battery_Boilers", flashlight);
-        Battery(Cell(3, 4, 0.8f, -1.2f), "Battery_Pipes", flashlight);
-        Battery(Cell(0, 3, 0.6f, 0.9f), "Battery_Archive", flashlight);
-        Battery(Cell(11, 1, -0.6f, -1.2f), "Battery_Electric", flashlight);
-        Battery(Cell(8, 4, -0.6f, -1.2f), "Battery_Deposit", flashlight);
-        Battery(Cell(6, 2, 0.4f, 0.9f), "Battery_Corridor", flashlight);
-        Bandage(Cell(9, 0, 0.8f, 1.0f), "Bandage_Electric", health);
-        Bandage(Cell(6, 4, 0.6f, -1.2f), "Bandage_Deposit", health);
+        Battery(Cell(2, 0, -1.2f, -0.8f), "Battery_Nurse", flashlight);
+        Battery(Cell(5, 0, 0.9f, -1.1f), "Battery_Patient2", flashlight);
+        Battery(Cell(2, 2, -1.0f, 1.0f), "Battery_Storage", flashlight);
+        Battery(Cell(4, 2, 1.0f, 1.0f), "Battery_Archive", flashlight);
+        Battery(Cell(5, 2, -1.0f, -1.0f), "Battery_Bathroom", flashlight);
+        Battery(Cell(5, 1, 0.5f, -1.6f), "Battery_Corridor", flashlight);
+        Bandage(Cell(4, 0, 1.0f, -1.0f), "Bandage_Patient1", health);
+        Bandage(Cell(3, 2, 0.8f, 1.2f), "Bandage_Storage", health);
 
         // --- Notas (Document + Interactable), apoyadas sobre muebles
-        Note(TopOf(drawer), "Nota arrugada",
-            "Si despiertas, no grites.\n\nSi oyes respirar detrás de ti, QUÉDATE QUIETO. No camines. No corras.\n\nSe cansa de esperar.\n\nLa escalera está al fondo del pasillo. La llave nunca estuvo lejos de los papeles.");
-        Note(TopOf(drawerArchive), "Registro del archivo",
-            "Candado del almacén: tres números.\n\nLos escribí donde no pudieran borrarlos: uno junto a la caldera, otro entre las tuberías.\n\nEl último lo recuerdo bien: 2.\n\nNunca supe quién entró a las 3:07.");
-        Note(TopOf(toolChestBoilers), "Informe de mantenimiento",
-            "La caldera sigue encendida aunque cortamos el gas hace meses.\n\nLos pacientes del sótano nunca fueron dados de alta. Nunca ingresaron, tampoco.\n\nNo bajes solo.");
-        Note(TopOf(tvDeposit), "Hoja de turno",
-            "Paciente 214. Ingreso: ninguno.\nHabitación: sótano.\n\nPor la noche se oye respirar detrás de la puerta. Si te giras, ya está ahí.");
+        // Cadena de pistas (cada una apunta a la siguiente sin dar la solución):
+        // nota inicial -> aviso de la reja -> etiqueta del archivador -> nota de enfermería -> números en las paredes
+        Note(TopOf(drawer), "Si despiertas", DocumentStyle.PatientNote, "", "",
+            "Si despiertas, no grites.\n\nSi oyes respirar detrás de ti, QUÉDATE QUIETO. No camines. No corras.\n\nSe cansa de esperar.\n\nHay una reja al fondo del pasillo. Es la única salida. Pregunta a quien dejó los avisos.");
+        Note(TopOf(gateTable), "Acceso clausurado", DocumentStyle.StaffReport, "SEG-0412", "18/11/1993",
+            "El acceso a la escalera permanece cerrado con llave.\n\nCopia única de la llave: archivador n.º 3 del almacén médico.\n\nQueda prohibido el paso después de las 22:00 h. Los cambios de turno se harán por el lado norte.", "Jefatura de Seguridad");
+        Note(TopOf(drawerArchive), "Nota de enfermería", DocumentStyle.PatientNote, "", "",
+            "Combinación del archivador 3: tres números.\n\nLos escribí donde no pudieran borrarlos: uno en la sala de espera, otro tras el cristal de observación.\n\nEl último lo recuerdo bien: 2.\n\nNunca supe quién entró a las 3:07.");
+        Note(TopOf(toolChestBath), "Cambio de fluorescentes", DocumentStyle.StaffReport, "MNT-0932", "09/11/1993",
+            "El fondo del pasillo lleva meses sin luz. Cambié los fluorescentes tres veces y se apagan solos.\n\nLos pacientes del turno de noche no figuran en ningún registro de ingreso.\n\nSolicito que no se envíe a nadie solo a esa zona.", "J. Ortega, Mantenimiento");
+        Note(TopOf(tvNurse), "Paciente 214", DocumentStyle.MedicalRecord, "0214-B", "02/12/1993",
+            "Ingreso: sin registro.\nUbicación: aislamiento, ala norte.\nDiagnóstico: pendiente.\n\nObservaciones: el paciente afirma que alguien le enseña un ritual por las noches. Se oye respirar detrás de la puerta. Si te giras, ya está ahí.\n\nNo medicar sin autorización.", "Enf. M. Reyes");
 
         // --- Pistas pintadas en la pared (textura con luz y profundidad: no se ven a través de los muros)
-        Vector3 boilerWall = Cell(4, 0, 0, cell / 2f - 0.16f);
-        WallText("4", new Vector3(boilerWall.x, 1.6f, boilerWall.z), 0f, 1.6f);
-        WallText("PRIMERO", new Vector3(boilerWall.x, 1.05f, boilerWall.z), 0f, 0.35f);
-        Vector3 pipeWall = Cell(4, 4, 0, -cell / 2f + 0.16f);
-        WallText("7", new Vector3(pipeWall.x, 1.5f, pipeWall.z), 180f, 1.6f);
-        Vector3 startWall = Cell(0, 0, 0, -cell / 2f);
-        WallText("NO TE GIRES", new Vector3(startWall.x - cell / 2f + 0.16f, 1.9f, startWall.z), 270f, 0.5f);
+        Vector3 waitingWall = Cell(1, 0, 0, cell / 2f - 0.16f);   // pared norte de la sala de espera
+        WallText("4", new Vector3(waitingWall.x, 1.6f, waitingWall.z), 0f, 1.6f);
+        WallText("PRIMERO", new Vector3(waitingWall.x, 1.05f, waitingWall.z), 0f, 0.35f);
+        Vector3 cellWall = Cell(7, 0, cell / 2f - 0.16f, 0);      // pared este de la celda: se ve a través del cristal de observación
+        WallText("7", new Vector3(cellWall.x, 1.5f, cellWall.z), 90f, 1.6f);
+        Vector3 startWall = Cell(1, 2, cell / 2f - 0.16f, 0);     // pared este de la habitación inicial: queda a tu espalda al despertar
+        WallText("NO TE GIRES", new Vector3(startWall.x, 1.9f, startWall.z), 90f, 0.5f);
 
         // --- Almacén: archivador con candado -> entrega la llave
-        GameObject locker = Prop("filing_cabinet", "C_Storage", 6, 0, 0.2f, 1.3f, 180f);
+        GameObject locker = Prop("filing_cabinet", "M_MedicalStorage", 3, 2, 0.2f, -1.3f, 0f);
         if (locker != null)
         {
             locker.name = "Locker_Padlock";
@@ -595,26 +705,44 @@ public static class Level01Builder
             Padlock padlock = locker.AddComponent<Padlock>();
             padlock.fixedCode = CodeText;
             padlock.giveItem = "llave_escalera";
+            padlock.unlockedMessage = "El candado cede. Dentro hay una llave con una etiqueta: «REJA».";
             Hook(it.onInteract, padlock.Open);
+
+            // Candado visible en la puerta del archivador y etiqueta con la indicación (sin dar el código)
+            GameObject lockModel = Spawn(SP + "lock.prefab", locker.transform);
+            if (lockModel != null)
+            {
+                lockModel.name = "Padlock_Model";
+                Bounds cb = GetBounds(locker);
+                Bounds lb = GetBounds(lockModel);
+                float longest = Mathf.Max(lb.size.x, Mathf.Max(lb.size.y, lb.size.z));
+                if (longest > 0.0001f) lockModel.transform.localScale *= 0.12f / longest;
+                SnapXZ(lockModel, cb.center.x, cb.max.z + 0.03f);
+                SnapY(lockModel, cb.min.y + cb.size.y * 0.62f, false);
+            }
+            Note(TopOf(locker), "Archivador n.º 3", DocumentStyle.StaffReport, "ALM-03", "",
+                "Cerrado con candado de combinación (3 cifras).\n\nLa combinación se anotó en el archivo, en una nota de enfermería. No la deje a la vista.", "Almacén médico");
         }
 
         BuildStairDoor();
     }
 
+    // La reja del fondo del pasillo principal separa el pasillo oscuro: se abre con la llave del archivador
     static void BuildStairDoor()
     {
-        Vector3 edge = Cell(10, 3) + new Vector3(0, 0, cell / 2f);   // borde norte de la celda (10,3)
-        GameObject door = Spawn(FH + "hospital_patient_room_door.prefab", doorsGroup);
+        Vector3 edge = Cell(7, 1) + new Vector3(cell / 2f, 0, 0);
+        GameObject door = Spawn(FH + "barred_cell_door.prefab", doorsGroup);
         if (door != null)
         {
             door.name = "Door_Stairs";
-            door.transform.rotation = Quaternion.Euler(0, doorBias, 0);
+            door.transform.rotation = Quaternion.Euler(0, 90f + doorBias, 0);
+            door.transform.localScale = new Vector3(1.26f, 1.09f, 1f);   // se ajusta al hueco de la puerta (1,36 x 2,35 m)
             SnapXZ(door, edge.x, edge.z);
             SnapY(door, 0f, false);
             EnsureCollider(door);
 
             Interactable it = door.AddComponent<Interactable>();
-            it.prompt = "Abrir puerta";
+            it.prompt = "Abrir reja";
             it.requiredItem = "llave_escalera";
             it.lockedMessage = "Está cerrada con llave";
             Door slide = door.AddComponent<Door>();
@@ -622,8 +750,8 @@ public static class Level01Builder
             Hook(it.onInteract, slide.Open);
         }
 
-        // Salida del nivel dentro de la habitación de la escalera
-        Vector3 exit = Cell(11, 4);
+        // Salida del nivel dentro de la escalera, al fondo del pasillo oscuro
+        Vector3 exit = Cell(11, 1);
         GameObject trigger = new GameObject("LevelExit");
         trigger.transform.SetParent(triggers);
         trigger.transform.position = new Vector3(exit.x, 1.2f, exit.z);
@@ -660,9 +788,9 @@ public static class Level01Builder
 
         AudioClip breath = AssetDatabase.LoadAssetAtPath<AudioClip>(BreathClip);
         // Respiración: el jugador debe quedarse quieto
-        Encounter("Breathing_Corridor_Boilers", Cell(3, 2), new Vector3(cell * 3f, wallH, cell), breath, jumpscare, 1.0f, 7f);
-        Encounter("Breathing_Pipes", Cell(4, 3, 0, -cell / 2f), new Vector3(cell * 3f, wallH, cell * 2f), breath, jumpscare, 1.5f, 8f);
-        Encounter("Breathing_Stairs", Cell(10, 2), new Vector3(cell * 3f, wallH, cell), breath, jumpscare, 2.0f, 8f);
+        Encounter("Breathing_Corridor_West", Cell(1, 1), new Vector3(cell * 3f, wallH, cell), breath, jumpscare, 1.0f, 7f);
+        Encounter("Breathing_Archive", Cell(4, 2), new Vector3(cell, wallH, cell), breath, jumpscare, 1.5f, 8f);
+        Encounter("Breathing_DarkHall", Cell(9, 1), new Vector3(cell * 3f, wallH, cell), breath, jumpscare, 2.0f, 8f);
     }
 
     static void Encounter(string name, Vector3 center, Vector3 size, AudioClip clip, Jumpscare jumpscare, float warning, float duration)
@@ -722,14 +850,18 @@ public static class Level01Builder
         if (go != null) Hook(go.GetComponent<Interactable>().onInteract, health.UseBandage);
     }
 
-    static void Note(Vector3 pos, string title, string text)
+    static void Note(Vector3 pos, string title, DocumentStyle style, string reference, string date, string text, string author = "")
     {
-        GameObject go = Item(Paper_Prefab, "Note_" + title.Replace(' ', '_'), pos, 0.3f, "Leer", documents);
+        GameObject go = Item(Paper_Prefab, "Note_" + System.Text.RegularExpressions.Regex.Replace(title, "[^A-Za-z0-9]+", "_"), pos, 0.3f, "Leer", documents);
         if (go == null) return;
         Interactable it = go.GetComponent<Interactable>();
         it.destroyAfterUse = false;
         Document doc = go.AddComponent<Document>();
         doc.title = title;
+        doc.style = style;
+        doc.reference = reference;
+        doc.date = date;
+        doc.author = author;
         doc.text = text;
         Hook(it.onInteract, doc.Read);
     }
@@ -925,6 +1057,12 @@ public static class Level01Builder
     static bool IsOpening(int c, int r, char d)
     {
         foreach (var o in Openings) if (o.c == c && o.r == r && o.d == d) return true;
+        return false;
+    }
+
+    static bool IsWindow(int c, int r, char d)
+    {
+        foreach (var w in Windows) if (w.c == c && w.r == r && w.d == d) return true;
         return false;
     }
 
