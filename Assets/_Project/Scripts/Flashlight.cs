@@ -16,6 +16,7 @@ public class Flashlight : MonoBehaviour
     public float maxIntensity = 6f;
 
     public bool IsOn { get; private set; }
+    public float Charge => charge;   // 0 a 1; lo lee el inventario
 
     float charge;
     string message;
@@ -54,8 +55,25 @@ public class Flashlight : MonoBehaviour
 
     public void AddBattery()
     {
-        charge = Mathf.Min(1f, charge + batteryAmount);
+        if (charge >= 0.99f)
+        {
+            Inventory.AddStack("bateria");   // la linterna está llena: se guarda para después
+            Show("Batería guardada. R para usarla");
+            return;
+        }
+        Recharge();
         Show("Batería recogida");
+    }
+
+    void Recharge() => charge = Mathf.Min(1f, charge + batteryAmount);
+
+    // R: usa una batería guardada
+    void UseStoredBattery()
+    {
+        if (charge >= 0.99f) { Show("La linterna ya está llena"); return; }
+        if (!Inventory.TakeStack("bateria")) { Show("No tienes baterías"); return; }
+        Recharge();
+        Show("Batería usada");
     }
 
     void Update()
@@ -64,6 +82,7 @@ public class Flashlight : MonoBehaviour
         if (!hasFlashlight || UIState.PanelOpen) return;
 
         if (Keyboard.current != null && Keyboard.current.fKey.wasPressedThisFrame && charge > 0f) SetOn(!IsOn);
+        if (Keyboard.current != null && Keyboard.current.rKey.wasPressedThisFrame) UseStoredBattery();
         if (!IsOn) return;
 
         charge -= Time.deltaTime / batteryDuration;
@@ -71,7 +90,7 @@ public class Flashlight : MonoBehaviour
         {
             charge = 0f;
             SetOn(false);
-            Show("Se acabó la batería");
+            Show(Inventory.Count("bateria") > 0 ? "Se acabó la batería. R para cambiarla" : "Se acabó la batería");
             return;
         }
 

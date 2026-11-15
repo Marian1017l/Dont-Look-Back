@@ -23,6 +23,10 @@ public class LookBackEncounter : MonoBehaviour
     public bool onlyOnce = true;         // si es false, se repite cada vez que el jugador entra
     public bool showHint = true;         // texto de ayuda en pantalla (apagado en niveles reales)
 
+    // true mientras algún encuentro está en aviso o activo: el inventario no se puede abrir (no hay "pausa" para esquivar la regla)
+    public static bool AnyThreat => threats > 0;
+    static int threats;
+
     enum State { Idle, Warning, Active, Done }
     State state = State.Idle;
     float timer;
@@ -39,6 +43,12 @@ public class LookBackEncounter : MonoBehaviour
         cam = Camera.main.transform;
         state = State.Warning;
         timer = warningTime;
+        threats++;
+    }
+
+    void OnDestroy()
+    {
+        if (state == State.Warning || state == State.Active) threats = Mathf.Max(0, threats - 1);   // la escena se recarga en pleno encuentro
     }
 
     void Update()
@@ -103,6 +113,7 @@ public class LookBackEncounter : MonoBehaviour
     void End()
     {
         if (stepsAudio != null) stepsAudio.Stop();
+        threats = Mathf.Max(0, threats - 1);
         state = onlyOnce ? State.Done : State.Idle;
     }
 
