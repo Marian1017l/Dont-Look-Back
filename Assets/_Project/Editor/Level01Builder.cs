@@ -73,7 +73,6 @@ public static class Level01Builder
     static readonly List<Vector2> reserved = new List<Vector2>();  // puntos que deben quedar libres (objetos recogibles, inicio)
     static readonly List<Vector2> doorPoints = new List<Vector2>();
     static System.Random rng;
-    static Jumpscare sceneJumpscare;   // el susto del nivel, compartido por encuentros y entidad
 
     [MenuItem("Don't Look Back/Crear Nivel 1 (Hospital)")]
     public static void Build()
@@ -133,10 +132,8 @@ public static class Level01Builder
 
         BuildKeyProps();
         BuildGameplay(flashlight, health);
-        ReservePatientSpots();   // antes de decorar, para que ningún mueble tape a los pacientes
         DressRooms();
         BuildHorror(horror);
-        BuildPatients(horror, flashlight);
         BuildAudio(audio);
 
         // Arquitectura estática: Unity la agrupa y dibuja más rápido
@@ -788,7 +785,6 @@ public static class Level01Builder
         jumpscare.scareObject = ghost;
         jumpscare.distance = 1.3f;
         jumpscare.duration = 1.0f;
-        sceneJumpscare = jumpscare;
 
         AudioClip breath = AssetDatabase.LoadAssetAtPath<AudioClip>(BreathClip);
         // Respiración: el jugador debe quedarse quieto
@@ -797,7 +793,7 @@ public static class Level01Builder
         Encounter("Breathing_DarkHall", Cell(9, 1), new Vector3(cell * 3f, wallH, cell), breath, jumpscare, 2.0f, 8f);
     }
 
-    static LookBackEncounter Encounter(string name, Vector3 center, Vector3 size, AudioClip clip, Jumpscare jumpscare, float warning, float duration)
+    static void Encounter(string name, Vector3 center, Vector3 size, AudioClip clip, Jumpscare jumpscare, float warning, float duration)
     {
         GameObject go = new GameObject(name);
         go.transform.SetParent(encounters);
@@ -826,167 +822,6 @@ public static class Level01Builder
         enc.duration = duration;
         enc.soundDistance = 1.2f;
         enc.showHint = false;   // sin texto en pantalla: el jugador lo aprende de la nota
-        return enc;
-    }
-
-    // ---------------------------------------------------------------- Pacientes, impostor y zona de poder
-
-    // Puntos donde estarán los pacientes (celda, desfase). Se reservan antes de decorar.
-    static Vector3 RealPatientPos => Cell(7, 4, 0f, 0.6f);      // depósito
-    static Vector3 ImpostorPos => Cell(8, 2, 0f, 1.2f);          // pasillo, de camino a la escalera
-
-    static void ReservePatientSpots()
-    {
-        reserved.Add(new Vector2(RealPatientPos.x, RealPatientPos.z));
-        reserved.Add(new Vector2(ImpostorPos.x, ImpostorPos.z));
-    }
-
-    // Un paciente real (pista verdadera) y su doppelgänger (pista falsa que lleva al cuarto eléctrico,
-    // la zona de poder). Todas las figuras son TEMPORALES (TEMP_) hasta tener los modelos reales.
-    static void BuildPatients(Transform horror, Flashlight flashlight)
-    {
-        Transform patients = T("Patients", horror);
-        Transform doppelganger = T("Doppelganger", horror);
-        Material patientMat = CreateMaterial("Paciente_TEMP", new Color(0.72f, 0.75f, 0.78f));
-        Material eyeMat = EyeMaterial();
-
-        // --- Paciente real: dice la verdad, coincide con las notas y con las pistas pintadas
-        GameObject real = TempFigure("TEMP_Patient_Real", patients, RealPatientPos, patientMat, eyeMat, 1.7f, true, false, out _);
-        real.transform.rotation = Quaternion.Euler(0, 20f, 0);
-        PatientNPC realNpc = real.AddComponent<PatientNPC>();
-        realNpc.displayName = "Paciente";
-        realNpc.lines = new[]
-        {
-            "Tú... acércate. Yo también intenté salir de aquí. Ya no importa.",
-            "El archivador del almacén guarda la llave de la escalera. Lleva un candado de tres números.",
-            "Uno está pintado junto a la caldera. Otro, entre las tuberías. El último, en el archivo.",
-            "Aquí no todos los que hablan dicen la verdad. Si dudas de alguien... alúmbralo.",
-            "Ahora vete. Ya viene...",
-        };
-        Hook(AddInteractable(real, "Hablar con el paciente", false).onInteract, realNpc.Talk);
-
-        // --- Impostor: parece otro paciente, pero su pista es falsa y se delata con la linterna
-        GameObject tell;
-        GameObject fake = TempFigure("TEMP_Patient_Impostor", patients, ImpostorPos, patientMat, eyeMat, 1.7f, true, false, out tell);
-        fake.transform.rotation = Quaternion.Euler(0, 270f, 0);   // mira hacia donde viene el jugador
-        PatientNPC fakeNpc = fake.AddComponent<PatientNPC>();
-        fakeNpc.displayName = "Paciente";
-        fakeNpc.isImpostor = true;
-        fakeNpc.vanishWhenFinished = false;   // se queda mirándote
-        fakeNpc.flashlight = flashlight;
-        fakeNpc.tell = tell;
-        fakeNpc.lines = new[]
-        {
-            "Shhh... acércate. Menos mal que te encuentro.",
-            "Yo ya casi no puedo caminar, pero sé cómo salir.",
-            "La llave de la escalera está en el cuarto eléctrico, detrás de la caja de fusibles.",
-            "Ve ahora, rápido. Yo me quedo vigilando el pasillo.",
-        };
-        Hook(AddInteractable(fake, "Hablar con el paciente", false).onInteract, fakeNpc.Talk);
-
-        // --- Zona de poder: el cuarto eléctrico (columnas 9 a 11, filas 0 y 1)
-        Vector3 center = Cell(10, 0, 0f, -cell / 2f);
-        Vector3 size = new Vector3(cell * 3f, wallH, cell * 2f);
-
-        GameObject zoneGo = new GameObject("PowerZone_Electric");
-        zoneGo.transform.SetParent(triggers);
-        zoneGo.transform.position = new Vector3(center.x, wallH / 2f, center.z);
-        BoxCollider box = zoneGo.AddComponent<BoxCollider>();
-        box.isTrigger = true;
-        box.size = size;
-        PowerZone zone = zoneGo.AddComponent<PowerZone>();
-
-        Bounds zoneBounds = new Bounds(zoneGo.transform.position, size);
-        List<Light> inZone = new List<Light>();
-        foreach (Light l in lamps.GetComponentsInChildren<Light>()) if (zoneBounds.Contains(l.transform.position)) inZone.Add(l);
-        zone.lights = inZone.ToArray();
-
-        // Encuentro reforzado: la respiración dura más, se repite y perdona menos movimiento
-        AudioClip breath = AssetDatabase.LoadAssetAtPath<AudioClip>(BreathClip);
-        LookBackEncounter strong = Encounter("Breathing_Electric_PowerZone", center, size, breath, sceneJumpscare, 0.8f, 8f);
-        strong.onlyOnce = false;
-        strong.graceTime = 0.5f;
-        strong.moveTolerance = 0.25f;
-
-        // Entidad: su verdadera forma. Aparece tras la respiración y camina hacia el jugador
-        GameObject entityGo = new GameObject("Entity_Doppelganger");
-        entityGo.transform.SetParent(doppelganger);
-        GameObject figure = TempFigure("TEMP_Entity", entityGo.transform, Vector3.zero, CreateMaterial("Entidad_TEMP", new Color(0.05f, 0.05f, 0.06f)), eyeMat, 2.1f, false, true, out _);
-        figure.SetActive(false);
-
-        GameObject spawn = new GameObject("SpawnPoint");
-        spawn.transform.SetParent(entityGo.transform);
-        spawn.transform.position = Cell(11, 0, 0.8f, -cell / 2f);   // pared este del cuarto, a media altura
-
-        ApproachingEntity entity = entityGo.AddComponent<ApproachingEntity>();
-        entity.figure = figure;
-        entity.spawnPoint = spawn.transform;
-        entity.jumpscare = sceneJumpscare;
-        entity.appearDelay = 10f;   // respiración (0.8 + 8 s) y luego aparece
-
-        Hook(zone.onPlayerEnter, fakeNpc.Vanish);   // el impostor desaparece cuando sigues su pista
-        Hook(zone.onPlayerEnter, entity.Begin);
-        Hook(zone.onPlayerExit, entity.Stop);
-    }
-
-    // Figura humanoide simple hecha con primitivas de Unity (temporal). La raíz está a la altura de los pies.
-    // hasCollider = true para el paciente (necesita Collider para poder hablarle), false para la entidad.
-    // eyesVisible = false en el paciente (los ojos solo aparecen si lo alumbras), true en la entidad. "tell" devuelve los ojos.
-    static GameObject TempFigure(string name, Transform parent, Vector3 pos, Material body, Material eyes, float height, bool hasCollider, bool eyesVisible, out GameObject tell)
-    {
-        GameObject root = new GameObject(name);
-        root.transform.SetParent(parent);
-        root.transform.position = pos;
-
-        GameObject torso = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-        torso.name = "Body";
-        Object.DestroyImmediate(torso.GetComponent<Collider>());
-        torso.transform.SetParent(root.transform, false);
-        torso.transform.localScale = new Vector3(0.55f, height * 0.42f, 0.55f);
-        torso.transform.localPosition = new Vector3(0, height * 0.42f, 0);
-        torso.GetComponent<Renderer>().sharedMaterial = body;
-
-        Vector3 headPos = new Vector3(0, height * 0.84f + 0.12f, 0);
-        GameObject head = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-        head.name = "Head";
-        Object.DestroyImmediate(head.GetComponent<Collider>());
-        head.transform.SetParent(root.transform, false);
-        head.transform.localScale = Vector3.one * 0.3f;
-        head.transform.localPosition = headPos;
-        head.GetComponent<Renderer>().sharedMaterial = body;
-
-        tell = new GameObject("Eyes_Tell");
-        tell.transform.SetParent(root.transform, false);
-        tell.transform.localPosition = headPos;
-        foreach (float side in new[] { -0.07f, 0.07f })
-        {
-            GameObject eye = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            eye.name = "Eye";
-            Object.DestroyImmediate(eye.GetComponent<Collider>());
-            eye.transform.SetParent(tell.transform, false);
-            eye.transform.localScale = Vector3.one * 0.05f;
-            eye.transform.localPosition = new Vector3(side, 0.02f, 0.13f);   // al frente (+Z de la figura)
-            eye.GetComponent<Renderer>().sharedMaterial = eyes;
-        }
-        tell.SetActive(eyesVisible);
-
-        if (hasCollider)
-        {
-            CapsuleCollider col = root.AddComponent<CapsuleCollider>();
-            col.center = new Vector3(0, height / 2f, 0);
-            col.height = height;
-            col.radius = 0.3f;
-        }
-        return root;
-    }
-
-    static Material EyeMaterial()
-    {
-        Material mat = CreateMaterial("OjosRojos_TEMP", new Color(0.8f, 0.05f, 0.05f));
-        mat.EnableKeyword("_EMISSION");
-        mat.SetColor("_EmissionColor", new Color(3f, 0.1f, 0.1f));
-        EditorUtility.SetDirty(mat);
-        return mat;
     }
 
     static void BuildAudio(Transform audio)
