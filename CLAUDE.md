@@ -246,8 +246,14 @@ Es preferible terminar tres o cuatro niveles bien diseñados que diez vacíos. E
 - Reglas de muerte: respiración detrás = **no te muevas** (`LookBackEncounter` modo Freeze); pasos detrás = **no mires atrás** (modo NoLook, pendiente de sonido de pasos).
 - Salud por golpes (`PlayerHealth`): cada ataque quita 50; dos golpes matan. Vendajes curan. Reemplaza al sistema de corazones en los niveles reales (el prototipo conserva `GameManager`/`HeartsUI`).
 - El fantasma del jumpscare es un objeto temporal (`TEMP_Ghost`) hasta tener el modelo real. No se descargan assets sin autorización (sección 11).
-- Falta por verificar en Unity: todo lo anterior (ver lista de pruebas en el informe del Nivel 1).
-- **Subetapa en curso (solo visual):** rehacer el Nivel 1 con distribución nueva (habitación inicial, pasillo, habitaciones de pacientes, enfermería, almacén, observación, pasillo oscuro). La escena anterior `Level01_Basement.unity` se conserva como respaldo (etiqueta git `antes-visual-nivel1`). No se tocan mecánicas, NPC, IA ni cordura en esta subetapa.
+<<<<<<< HEAD
+- **Pacientes y doppelgänger** (`PatientNPC`, `Subtitles`, `PowerZone`, `ApproachingEntity`, generados por `Level01Builder.BuildPatients`):
+  - Paciente real (depósito, `TEMP_Patient_Real`): pista verdadera por subtítulos y se desvanece al terminar.
+  - Impostor (pasillo, `TEMP_Patient_Impostor`): pista falsa hacia el cuarto eléctrico. Si se le apunta con la linterna `revealSeconds` seguidos, aparecen ojos rojos y se delata.
+  - `PowerZone_Electric` (cuarto eléctrico): las luces fallan, encuentro de respiración reforzado y repetible, y `ApproachingEntity` aparece tras `appearDelay` y camina hacia el jugador (golpe de `PlayerHealth` si lo alcanza; salir de la zona la retira).
+  - Figuras temporales (`TEMP_`) hasta tener los modelos reales.
+- Falta por verificar en Unity: todo lo anterior, incluida la mecánica de pacientes (no se ha probado en el Editor; consultar la lista de pruebas en el informe del Nivel 1).
+- **Subetapa en curso (solo visual):** rehacer el Nivel 1 con distribución nueva (habitación inicial, pasillo, habitaciones de pacientes, enfermería, almacén, observación, pasillo oscuro). La escena anterior `Level01_Basement.unity` se conserva como respaldo (etiqueta git `antes-visual-nivel1`). No se modifican las mecánicas, NPC, IA ni cordura existentes durante esta subetapa.
 - **Nivel 1 actual:** menú **Don't Look Back > Crear Nivel 1 (Hospital)** -> `Assets/_Project/Scenes/Level01_Ward.unity` (48x12 m, celdas de 4 m; cuartos de 4x4 y 8x4 m). Recorrido: nota inicial -> aviso junto a la reja -> etiqueta del archivador (almacén) -> nota de enfermería (archivo) -> números 4 (sala de espera), 7 (celda, visible tras el cristal de observación) y 2 (nota) -> candado `472` -> llave -> reja -> pasillo oscuro -> `LevelExit` (`Level02_Service` aún no existe: la pantalla final permite reiniciar con R).
 - **Documentos:** `Document` tiene tipo (`PatientNote`, `MedicalRecord`, `StaffReport`), referencia, fecha y firma; `DocumentReader` dibuja la hoja (IMGUI) con papel generado por código (`PaperTexture`) y tipografías del sistema (Courier New / Ink Free, con respaldo a la de Unity).
 - **Pendiente visual:** números en pared aún en pixel-art (rehacer como trazos a mano / Decal Projector), linterna visible de NomadicUV, más densidad en el pasillo, bake de luz.
@@ -266,6 +272,9 @@ DON'T LOOK BACK es terror psicológico en primera persona en un **hospital psiqu
 - El hospital fue abandonado. La historia se descubre poco a poco con documentos, expedientes, notas, grabaciones y computadores; nunca se cuenta todo de golpe. En el Nivel 1 solo se sugiere que algo extraño pasaba antes del abandono.
 
 Reglas visuales: la oscuridad es una herramienta narrativa, no una excusa; el jugador siempre debe reconocer la arquitectura. Paleta: verdes de hospital desaturados, grises, beige envejecido, blancos sucios, marrones de deterioro, negros profundos solo en zonas puntuales, rojo de emergencia solo en momentos clave.
+=======
+- Falta por verificar en Unity: todo lo anterior (ver lista de pruebas en el informe del Nivel 1).
+>>>>>>> parent of cb03fa2 (Add patients, impostor doppelganger and power zone to Level 1)
 
 ## 18. Principio final
 
