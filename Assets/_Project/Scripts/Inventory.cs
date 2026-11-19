@@ -10,7 +10,7 @@ public struct ItemInfo
     public ItemIcon icon;
 }
 
-// Documento ya leído: se guarda para poder releerlo desde el inventario
+// Registro de un documento leído (el inventario no guarda el texto, solo que se leyó)
 public struct DocumentEntry
 {
     public string title, text, reference, date, author;
@@ -77,6 +77,27 @@ public static class Inventory
             hint = "Úsala en el panel del montacargas",
             icon = ItemIcon.Key
         },
+        ["tarjeta_investigacion"] = new ItemInfo
+        {
+            name = "Tarjeta de investigación",
+            description = "Tarjeta de acceso del personal del ala de investigación, con la banda magnética gastada. Estaba sobre el escritorio de la sala de proyección.",
+            hint = "Úsala en la puerta del laboratorio",
+            icon = ItemIcon.Key
+        },
+        ["llave_direccion"] = new ItemInfo
+        {
+            name = "Llave de Dirección",
+            description = "Llave de latón con una etiqueta de cartón: «DIRECCIÓN». Estaba bajo candado en el casillero de custodia de la cámara fría.",
+            hint = "Úsala en la puerta de Dirección de Investigación",
+            icon = ItemIcon.Key
+        },
+        ["llave_s9"] = new ItemInfo
+        {
+            name = "Llave de S-9",
+            description = "Llave pesada con una placa grabada: «S-9». Según el acta, cada mañana aparecía fuera de la caja fuerte. Nadie debía usarla.",
+            hint = "Úsala en la puerta sellada del vestíbulo",
+            icon = ItemIcon.Key
+        },
     };
 
     // Avisan a la interfaz (aviso de "nuevo objeto"); no hace falta suscribirse desde otros scripts
@@ -113,7 +134,7 @@ public static class Inventory
         return true;
     }
 
-    // Al morir: el nivel se reinicia, así que se pierden los objetos; los documentos leídos se conservan (son tus apuntes)
+    // Al morir: el nivel se reinicia, así que se pierden los objetos; el registro de documentos leídos se conserva
     public static void Clear()
     {
         items.Clear();

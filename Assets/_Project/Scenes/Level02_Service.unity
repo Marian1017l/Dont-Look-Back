@@ -98603,7 +98603,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bb5f0705cac899a439d8138f62cdb9c7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LevelExit
-  nextScene: 
+  nextScene: Level03_ResearchWing
   message: Fin del nivel 2
 --- !u!65 &1889748531
 BoxCollider:

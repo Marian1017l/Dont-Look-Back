@@ -5,7 +5,7 @@ using UnityEngine.SceneManagement;
 
 // Inventario del jugador. Se abre con TAB o I y tiene dos pestañas:
 //  - Objetos: rejilla con lo que llevas (linterna, llaves...) y su descripción.
-//  - Documentos: todo lo que has leído; se puede releer.
+//  - Documentos: registro de lo que has leído (solo título y datos; el contenido no se guarda).
 // Además muestra la salud y la batería, y un aviso en una esquina cada vez que recoges algo.
 // El juego NO se pausa (es terror): por eso no se puede abrir con una amenaza activa, y se cierra si te golpean.
 // Se crea solo al iniciar el juego; no hay que ponerlo en la escena. Los datos viven en Inventory.
@@ -109,7 +109,7 @@ public class InventoryUI : MonoBehaviour
     }
 
     void OnDocumentAdded(DocumentEntry d) =>
-        QueueToast("DOCUMENTO GUARDADO", d.title, "TAB  ·  inventario  >  documentos", InventoryIcons.Document(d.style), Accent, 0.3f);
+        QueueToast("DOCUMENTO LEÍDO", d.title, "TAB  ·  inventario  >  documentos (registro)", InventoryIcons.Document(d.style), Accent, 0.3f);
 
     void QueueToast(string newLabel, string newName, string newHint, Texture2D icon, Color accent, float delay)
     {
@@ -166,7 +166,7 @@ public class InventoryUI : MonoBehaviour
         if (kb.rightArrowKey.wasPressedThisFrame) Move(1, 0);
         if (kb.upArrowKey.wasPressedThisFrame) Move(0, -1);
         if (kb.downArrowKey.wasPressedThisFrame) Move(0, 1);
-        if (tab == Tab.Documents && (kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame)) ReadSelected();
+        // Los documentos no se guardan en el inventario: la pestaña solo registra cuáles se han leído (no hay nada que releer)
     }
 
     void TryOpen()
@@ -235,13 +235,6 @@ public class InventoryUI : MonoBehaviour
         }
     }
 
-    void ReadSelected()
-    {
-        if (selectedDoc < 0 || selectedDoc >= Inventory.Documents.Count) return;
-        DocumentEntry d = Inventory.Documents[selectedDoc];
-        Close();
-        DocumentReader.Show(d.title, d.text, d.style, d.reference, d.date, d.author);   // el lector no vuelve a guardarlo
-    }
 
     // ---------------------------------------------------------------- Dibujo: utilidades
 
@@ -470,7 +463,7 @@ public class InventoryUI : MonoBehaviour
             Fill(listArea, SlotEmpty);
             Frame(listArea, new Color(Line.r, Line.g, Line.b, 0.18f), 1f);
             Text(R(80, 330, 700, 50), "Aún no has leído ningún documento", 26, FontStyle.Bold, TextAnchor.MiddleCenter, Dim, typewriter);
-            Text(R(140, 390, 580, 80), "Notas, informes y expedientes: cada uno que leas queda guardado aquí.", 18, FontStyle.Normal, TextAnchor.UpperCenter, Faint, typewriter, true);
+            Text(R(140, 390, 580, 80), "Notas, informes y expedientes: de cada uno que leas queda aquí el registro de que lo leíste.", 18, FontStyle.Normal, TextAnchor.UpperCenter, Faint, typewriter, true);
             Rect empty = R(850, 108, 610, 640);
             Fill(empty, DetailColor);
             Frame(empty, Line, 1f);
@@ -496,7 +489,7 @@ public class InventoryUI : MonoBehaviour
             {
                 bool again = i == selectedDoc && e.clickCount >= 2;
                 selectedDoc = i;
-                if (again) { ReadSelected(); return; }
+                _ = again;   // sin releer: solo se selecciona
             }
         }
 
@@ -531,10 +524,9 @@ public class InventoryUI : MonoBehaviour
         Color ink = patient ? new Color(0.1f, 0.1f, 0.2f) : new Color(0.1f, 0.09f, 0.08f);
         float left = paper.x + paper.width * 0.12f, width = paper.width * 0.76f;
         Text(new Rect(left, paper.y + paper.height * 0.06f, width, paper.height * 0.09f), patient ? d.title : d.title.ToUpper(), patient ? 19 : 14, FontStyle.Bold, TextAnchor.MiddleLeft, ink, font, true);
-        Text(new Rect(left, paper.y + paper.height * 0.17f, width, paper.height * 0.72f), d.text, patient ? 14 : 11, FontStyle.Normal, TextAnchor.UpperLeft, ink, font, true);
+        Text(new Rect(left, paper.y + paper.height * 0.17f, width, paper.height * 0.72f), "Documento leído.\n\nSolo se guarda el registro: el contenido no se conserva en el inventario.", patient ? 14 : 11, FontStyle.Normal, TextAnchor.UpperLeft, ink, font, true);
         GUI.matrix = saved;
 
-        if (Clicked(e, paper)) { ReadSelected(); return; }
 
         // Ficha a la derecha de la hoja
         float y = 140;
@@ -547,9 +539,8 @@ public class InventoryUI : MonoBehaviour
         bool hover = button.Contains(e.mousePosition);
         Fill(button, hover ? new Color(0.2f, 0.32f, 0.26f) : AccentFill);
         Frame(button, Accent, 2f);
-        Text(button, "LEER DOCUMENTO", 24, FontStyle.Bold, TextAnchor.MiddleCenter, Bright, typewriter);
-        Text(R(878, 718, 552, 24), "clic en la hoja  ·  Enter", 13, FontStyle.Normal, TextAnchor.MiddleCenter, Faint, typewriter);
-        if (Clicked(e, button)) ReadSelected();
+        Text(button, "LEÍDO", 24, FontStyle.Bold, TextAnchor.MiddleCenter, Bright, typewriter);
+        Text(R(878, 718, 552, 24), "registro de lectura  ·  para releerlo, vuelve a la hoja", 13, FontStyle.Normal, TextAnchor.MiddleCenter, Faint, typewriter);
     }
 
     float Field(float y, string name, string value)
@@ -594,7 +585,7 @@ public class InventoryUI : MonoBehaviour
         }
 
         Text(R(800, 776, 660, 24), "TAB / I  cerrar     Q / E  cambiar pestaña", 14, FontStyle.Normal, TextAnchor.MiddleRight, Dim, typewriter);
-        Text(R(800, 802, 660, 24), "← ↑ ↓ →  elegir     Enter  leer     clic  seleccionar", 14, FontStyle.Normal, TextAnchor.MiddleRight, Faint, typewriter);
+        Text(R(800, 802, 660, 24), "← ↑ ↓ →  elegir     clic  seleccionar", 14, FontStyle.Normal, TextAnchor.MiddleRight, Faint, typewriter);
     }
 
     // ---------------------------------------------------------------- Aviso de esquina

@@ -338,7 +338,7 @@ public static partial class Level02Builder
         box.isTrigger = true;
         box.size = new Vector3(Mathf.Max(0.8f, cab.size.x - 0.8f), 2.2f, Mathf.Max(0.8f, cab.size.z - 0.8f));
         LevelExit exit = trigger.AddComponent<LevelExit>();
-        exit.nextScene = "";   // el Nivel 3 no existe todavía
+        exit.nextScene = "Level03_ResearchWing";   // Nivel 3: ala de investigación (Level03Builder)
         exit.message = "Fin del nivel 2";
 
         reserved.Add(new Vector2(cab.min.x - 0.8f, cab.center.z));

@@ -21,10 +21,13 @@ public class Document : MonoBehaviour
     // Prepara la hoja de antemano para que abrir el documento no cause un tirón
     void Start() => PaperTexture.Get(style);
 
-    // Lo lee en pantalla y lo guarda en el inventario (pestaña Documentos) para poder releerlo
+    // Lo lee en pantalla y deja constancia de que se leyó (pestaña Documentos del inventario). El texto NO se guarda en el inventario.
+    // La hoja ya leída deja de brillar.
     public void Read()
     {
-        Inventory.AddDocument(new DocumentEntry { title = title, text = text, style = style, reference = reference, date = date, author = author });
+        Inventory.AddDocument(new DocumentEntry { title = title, text = "", style = style, reference = reference, date = date, author = author });
+        Transform glint = transform.Find("Glint");
+        if (glint != null) Destroy(glint.gameObject);
         DocumentReader.Show(title, text, style, reference, date, author);
     }
 }
