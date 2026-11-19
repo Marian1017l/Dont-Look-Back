@@ -15,6 +15,12 @@ public class Flashlight : MonoBehaviour
     [Range(0, 1)] public float lowCharge = 0.2f;       // por debajo de esto la luz parpadea
     public float maxIntensity = 6f;
 
+    // Carga con la que se entró al nivel (la guarda LevelExit al cambiar de escena). -1 = nivel inicial: usa startCharge.
+    public static float CarriedCharge = -1f;
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    static void ResetStatics() => CarriedCharge = -1f;   // por si el Editor no recarga el dominio al dar Play
+
     public bool IsOn { get; private set; }
     public float Charge => charge;   // 0 a 1; lo lee el inventario
 
@@ -24,7 +30,7 @@ public class Flashlight : MonoBehaviour
 
     void Start()
     {
-        charge = startCharge;
+        charge = CarriedCharge >= 0f ? Mathf.Clamp01(CarriedCharge) : startCharge;
         if (startsWithFlashlight) hasFlashlight = true;
         if (spot == null) spot = CreateSpot();   // por si la escena no trae la luz: se crea como hija de la cámara
         SetOn(hasFlashlight);

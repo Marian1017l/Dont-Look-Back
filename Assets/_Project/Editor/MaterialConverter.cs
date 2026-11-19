@@ -26,8 +26,28 @@ public static class MaterialConverter
             EditorUtility.SetDirty(m);
             converted++;
         }
+        int fixedEmission = FixEmissionWithoutMap();
         AssetDatabase.SaveAssets();
-        Debug.Log("MaterialConverter: " + converted + " materiales convertidos a URP/Lit.");
+        Debug.Log("MaterialConverter: " + converted + " materiales convertidos a URP/Lit; " + fixedEmission + " con emisión blanca sin mapa corregidos.");
+    }
+
+    // Survival Props trae la emisión activada en blanco y sin mapa (resto de la conversión desde otro pipeline):
+    // todo el objeto brilla como una bombilla (destornilladores, bidones, baterías...). Se apaga.
+    static int FixEmissionWithoutMap()
+    {
+        int count = 0;
+        foreach (string guid in AssetDatabase.FindAssets("t:Material", new[] { "Assets/Survival Props" }))
+        {
+            Material m = AssetDatabase.LoadAssetAtPath<Material>(AssetDatabase.GUIDToAssetPath(guid));
+            if (m == null || !m.IsKeywordEnabled("_EMISSION")) continue;
+            if (m.HasProperty("_EmissionMap") && m.GetTexture("_EmissionMap") != null) continue;
+            m.SetColor("_EmissionColor", Color.black);
+            m.DisableKeyword("_EMISSION");
+            m.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
+            EditorUtility.SetDirty(m);
+            count++;
+        }
+        return count;
     }
 
     static bool NeedsConversion(Material m)

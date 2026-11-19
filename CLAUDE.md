@@ -246,7 +246,6 @@ Es preferible terminar tres o cuatro niveles bien diseñados que diez vacíos. E
 - Reglas de muerte: respiración detrás = **no te muevas** (`LookBackEncounter` modo Freeze); pasos detrás = **no mires atrás** (modo NoLook, pendiente de sonido de pasos).
 - Salud por golpes (`PlayerHealth`): cada ataque quita 50; dos golpes matan. Vendajes curan. Reemplaza al sistema de corazones en los niveles reales (el prototipo conserva `GameManager`/`HeartsUI`).
 - El fantasma del jumpscare es un objeto temporal (`TEMP_Ghost`) hasta tener el modelo real. No se descargan assets sin autorización (sección 11).
-<<<<<<< HEAD
 - **Pacientes y doppelgänger** (`PatientNPC`, `Subtitles`, `PowerZone`, `ApproachingEntity`, generados por `Level01Builder.BuildPatients`):
   - Paciente real (depósito, `TEMP_Patient_Real`): pista verdadera por subtítulos y se desvanece al terminar.
   - Impostor (pasillo, `TEMP_Patient_Impostor`): pista falsa hacia el cuarto eléctrico. Si se le apunta con la linterna `revealSeconds` seguidos, aparecen ojos rojos y se delata.
@@ -272,9 +271,6 @@ DON'T LOOK BACK es terror psicológico en primera persona en un **hospital psiqu
 - El hospital fue abandonado. La historia se descubre poco a poco con documentos, expedientes, notas, grabaciones y computadores; nunca se cuenta todo de golpe. En el Nivel 1 solo se sugiere que algo extraño pasaba antes del abandono.
 
 Reglas visuales: la oscuridad es una herramienta narrativa, no una excusa; el jugador siempre debe reconocer la arquitectura. Paleta: verdes de hospital desaturados, grises, beige envejecido, blancos sucios, marrones de deterioro, negros profundos solo en zonas puntuales, rojo de emergencia solo en momentos clave.
-=======
-- Falta por verificar en Unity: todo lo anterior (ver lista de pruebas en el informe del Nivel 1).
->>>>>>> parent of cb03fa2 (Add patients, impostor doppelganger and power zone to Level 1)
 
 ## 18. Principio final
 

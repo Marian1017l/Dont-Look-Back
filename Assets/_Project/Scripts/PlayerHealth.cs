@@ -19,6 +19,13 @@ public class PlayerHealth : MonoBehaviour
     public float deathDelay = 1.4f;          // tiempo del jumpscare antes del fundido
     public float fadeTime = 1f;
 
+    // Salud con la que se entró al nivel (la guarda LevelExit al cambiar de escena). -1 = nivel inicial: salud llena.
+    // También se usa al reiniciar tras morir: el nivel vuelve a empezar con la salud con la que se entró.
+    public static float CarriedHealth = -1f;
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    static void ResetStatics() => CarriedHealth = -1f;   // por si el Editor no recarga el dominio al dar Play
+
     public float Health { get; private set; }
     public bool IsDead { get; private set; }
     public bool IsLethalHit => Health - hitDamage <= 0f;   // el encuentro lo usa para elegir el jumpscare largo
@@ -31,13 +38,14 @@ public class PlayerHealth : MonoBehaviour
     void Awake()
     {
         Instance = this;
-        Health = maxHealth;
+        Health = CarriedHealth >= 0f ? Mathf.Clamp(CarriedHealth, 1f, maxHealth) : maxHealth;
         vignette = MakeVignette();
     }
 
     void Start()
     {
         if (controller != null) baseSpeed = controller.walkSpeed;
+        ApplySpeed();   // si se llega herido de un nivel anterior, también se camina más lento
     }
 
     public void TakeHit() => TakeDamage(hitDamage);

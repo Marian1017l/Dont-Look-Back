@@ -56,6 +56,27 @@ public static class Inventory
             hint = "Úsala en la reja del pasillo principal",
             icon = ItemIcon.Key
         },
+        ["fusible"] = new ItemInfo
+        {
+            name = "Fusible",
+            description = "Cilindro de porcelana con un hilo de cobre intacto. Lleva grabado «30 A». Estaba guardado en el cofre del taller de mantenimiento.",
+            hint = "Colócalo en el tablero de fusibles de la sala eléctrica",
+            icon = ItemIcon.Generic
+        },
+        ["tarjeta_archivo"] = new ItemInfo
+        {
+            name = "Tarjeta del archivo",
+            description = "Tarjeta de acceso con la banda magnética gastada. Impreso en el borde: «ARCHIVO RESTRINGIDO · SUPERVISIÓN ESPECIAL».",
+            hint = "Úsala en la reja del archivo restringido",
+            icon = ItemIcon.Key
+        },
+        ["llave_montacargas"] = new ItemInfo
+        {
+            name = "Llave del montacargas",
+            description = "Llave de hierro con una etiqueta de cartón: «MONTACARGAS · NIVEL INFERIOR». La tinta está corrida por la humedad.",
+            hint = "Úsala en el panel del montacargas",
+            icon = ItemIcon.Key
+        },
     };
 
     // Avisan a la interfaz (aviso de "nuevo objeto"); no hace falta suscribirse desde otros scripts

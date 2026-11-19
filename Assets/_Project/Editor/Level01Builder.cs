@@ -9,7 +9,6 @@ using UnityEngine.Rendering.Universal;
 
 // Menú "Don't Look Back > Crear Nivel 1 (Hospital)".
 // Arma la escena Assets/_Project/Scenes/Level01_Ward.unity con los modelos de los packs.
-// (La escena anterior Level01_Basement.unity se conserva sin tocar como respaldo.)
 // El hospital se genera desde el mapa de texto de abajo: cada letra es una habitación,
 // las paredes aparecen solas en los bordes y las "aperturas" son los huecos de puerta.
 // Cada habitación se decora sola con una lista de objetos según su tema (método Dress).
@@ -763,7 +762,7 @@ public static class Level01Builder
         levelExit.message = "Fin del nivel 1";
         reserved.Add(new Vector2(exit.x, exit.z));
 
-        WallText("SALIDA  >  PISO 2", new Vector3(exit.x + cell / 2f - 0.16f, 1.9f, exit.z), 90f, 0.5f);
+        WallText("SERVICIOS / SUBSUELO", new Vector3(exit.x + cell / 2f - 0.16f, 1.9f, exit.z), 90f, 0.5f);
     }
 
     // ---------------------------------------------------------------- Horror (encuentros)
@@ -1020,31 +1019,8 @@ public static class Level01Builder
         return AssetDatabase.LoadAssetAtPath<Texture2D>(path);
     }
 
-    // Letras 5x7 solo para los textos del nivel
-    static string[] Glyph(char c)
-    {
-        switch (c)
-        {
-            case '2': return new[] { ".###.", "#...#", "....#", "..##.", ".#...", "#....", "#####" };
-            case '4': return new[] { "...#.", "..##.", ".#.#.", "#..#.", "#####", "...#.", "...#." };
-            case '7': return new[] { "#####", "....#", "...#.", "..#..", ".#...", ".#...", ".#..." };
-            case 'P': return new[] { "####.", "#...#", "#...#", "####.", "#....", "#....", "#...." };
-            case 'R': return new[] { "####.", "#...#", "#...#", "####.", "#.#..", "#..#.", "#...#" };
-            case 'I': return new[] { ".###.", "..#..", "..#..", "..#..", "..#..", "..#..", ".###." };
-            case 'M': return new[] { "#...#", "##.##", "#.#.#", "#.#.#", "#...#", "#...#", "#...#" };
-            case 'E': return new[] { "#####", "#....", "#....", "####.", "#....", "#....", "#####" };
-            case 'O': return new[] { ".###.", "#...#", "#...#", "#...#", "#...#", "#...#", ".###." };
-            case 'N': return new[] { "#...#", "##..#", "#.#.#", "#..##", "#...#", "#...#", "#...#" };
-            case 'T': return new[] { "#####", "..#..", "..#..", "..#..", "..#..", "..#..", "..#.." };
-            case 'G': return new[] { ".###.", "#...#", "#....", "#.###", "#...#", "#...#", ".###." };
-            case 'S': return new[] { ".####", "#....", "#....", ".###.", "....#", "....#", "####." };
-            case 'A': return new[] { ".###.", "#...#", "#...#", "#####", "#...#", "#...#", "#...#" };
-            case 'L': return new[] { "#....", "#....", "#....", "#....", "#....", "#....", "#####" };
-            case 'D': return new[] { "####.", "#...#", "#...#", "#...#", "#...#", "#...#", "####." };
-            case '>': return new[] { "#....", ".#...", "..#..", "...#.", "..#..", ".#...", "#...." };
-            default: return new[] { ".....", ".....", ".....", ".....", ".....", ".....", "....." };
-        }
-    }
+    // Letras 5x7: la tipografía vive en BuildKit (compartida con los demás niveles)
+    static string[] Glyph(char c) => BuildKit.Glyph(c);
 
     // ---------------------------------------------------------------- Geometría y ayudas
 

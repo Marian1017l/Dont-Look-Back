@@ -20,7 +20,14 @@ public class LevelExit : MonoBehaviour
         if (controller != null) controller.enabled = false;
 
         hasNext = !string.IsNullOrEmpty(nextScene) && Application.CanStreamedLevelBeLoaded(nextScene);
-        if (hasNext) UnityEngine.SceneManagement.SceneManager.LoadScene(nextScene);
+        if (!hasNext) return;
+
+        // Salud y batería pasan al siguiente nivel tal como estaban (el inventario ya es estático)
+        PlayerHealth health = other.GetComponent<PlayerHealth>();
+        if (health != null) PlayerHealth.CarriedHealth = health.Health;
+        Flashlight flashlight = other.GetComponentInChildren<Flashlight>();
+        if (flashlight != null) Flashlight.CarriedCharge = flashlight.Charge;
+        UnityEngine.SceneManagement.SceneManager.LoadScene(nextScene);
     }
 
     void Update()
