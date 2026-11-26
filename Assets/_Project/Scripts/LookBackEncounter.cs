@@ -1,13 +1,15 @@
 using UnityEngine;
 
 // Encuentro de terror. Va en un cubo con Collider marcado "Is Trigger": al entrar el jugador
-// suena el aviso y comienza la amenaza. Dos modos:
+// suena el aviso y comienza la amenaza. Tres modos:
 //  - NoLook (pasos detrás): si el jugador gira la cámara más de maxAngle, lo atacan.
 //  - Freeze (respiración detrás): si el jugador se mueve más de moveTolerance, lo atacan.
+//  - Confront (respiración detrás + el demonio aparece DELANTE): mirar al demonio es seguro, pero girar más de maxAngle
+//    (mirar atrás) o moverse más de moveTolerance lo atrae. Es la combinación de los dos modos anteriores.
 // Si hay PlayerHealth en la escena el ataque quita salud; si no, usa las vidas del prototipo.
 public class LookBackEncounter : MonoBehaviour
 {
-    public enum Mode { NoLook, Freeze }
+    public enum Mode { NoLook, Freeze, Confront }
 
     public Mode mode = Mode.NoLook;
     public AudioSource stepsAudio;       // sonido del aviso (pasos o respiración)
@@ -19,7 +21,8 @@ public class LookBackEncounter : MonoBehaviour
     [Range(30, 180)]
     public float maxAngle = 120f;        // NoLook: giro permitido antes de perder
     public float graceTime = 0.8f;       // Freeze: tiempo para reaccionar y detenerse
-    public float moveTolerance = 0.4f;   // Freeze: metros que se pueden desplazar sin perder
+    public float moveTolerance = 0.4f;   // Freeze y Confront: metros que se pueden desplazar sin perder
+    public float demonDistance = 5f;     // Confront: a cuántos metros delante aparece el demonio (se acorta si hay una pared)
     public bool onlyOnce = true;         // si es false, se repite cada vez que el jugador entra
     public bool showHint = true;         // texto de ayuda en pantalla (apagado en niveles reales)
 
@@ -71,10 +74,11 @@ public class LookBackEncounter : MonoBehaviour
 
     bool Broken()
     {
-        if (mode == Mode.NoLook)
-            return Vector3.Angle(savedForward, Flat(cam.forward)) > maxAngle;
+        // Mirar atrás: ángulo horizontal entre hacia dónde miraba al empezar y hacia dónde mira ahora
+        if (mode != Mode.Freeze && Vector3.Angle(savedForward, Flat(cam.forward)) > maxAngle) return true;
+        if (mode == Mode.NoLook) return false;
 
-        // Freeze: tras el tiempo de reacción se fija la posición y no se puede salir de ella
+        // Freeze y Confront: tras el tiempo de reacción se fija la posición y no se puede salir de ella
         if (duration - timer < graceTime) return false;
         if (!armed) { armed = true; startPos = player.position; return false; }
         Vector3 moved = player.position - startPos;
@@ -108,11 +112,23 @@ public class LookBackEncounter : MonoBehaviour
             stepsAudio.transform.position = cam.position - savedForward * soundDistance;   // detrás del jugador
             stepsAudio.Play();
         }
+        if (mode == Mode.Confront && jumpscare != null) ShowDemonAhead();
+    }
+
+    // El demonio aparece quieto delante del jugador, mirándolo; si hay una pared antes, queda justo delante de ella
+    void ShowDemonAhead()
+    {
+        float dist = demonDistance;
+        if (Physics.Raycast(cam.position, savedForward, out RaycastHit hit, demonDistance, ~0, QueryTriggerInteraction.Ignore))
+            dist = Mathf.Max(1.5f, hit.distance - 0.6f);
+        Vector3 pos = player.position + savedForward * dist;   // el pivote del Player está en los pies
+        jumpscare.Show(pos, player.position);
     }
 
     void End()
     {
         if (stepsAudio != null) stepsAudio.Stop();
+        if (mode == Mode.Confront && jumpscare != null) jumpscare.Hide();
         threats = Mathf.Max(0, threats - 1);
         state = onlyOnce ? State.Done : State.Idle;
     }
@@ -124,7 +140,9 @@ public class LookBackEncounter : MonoBehaviour
         if (!showHint || (state != State.Warning && state != State.Active)) return;
         GUIStyle style = new GUIStyle(GUI.skin.label) { fontSize = 30, alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold };
         style.normal.textColor = state == State.Warning ? Color.gray : new Color(1f, 0.4f, 0.4f);
-        string active = mode == Mode.Freeze ? "RESPIRACIÓN DETRÁS DE TI. NO TE MUEVAS" : "PASOS DETRÁS DE TI. NO MIRES ATRÁS";
+        string active = mode == Mode.Freeze ? "RESPIRACIÓN DETRÁS DE TI. NO TE MUEVAS"
+                      : mode == Mode.Confront ? "ALGO TE MIRA DE FRENTE. NO TE MUEVAS NI MIRES ATRÁS"
+                      : "PASOS DETRÁS DE TI. NO MIRES ATRÁS";
         GUI.Label(new Rect(0, 60, Screen.width, 50), state == State.Warning ? "...algo se acerca..." : active, style);
     }
 }

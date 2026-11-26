@@ -229,6 +229,7 @@ public static partial class Level03Builder
         BuildPlayer();
         BuildAudio();
         BuildDressing();   // Level03Builder.Dressing.cs (llama a Gameplay y Lighting)
+        ScreamerKit.BuildLevel3(root);   // demonio + triggers de screamer (tabla en ScreamerKit.cs)
 
         foreach (Transform t in architecture.GetComponentsInChildren<Transform>()) t.gameObject.isStatic = true;
 
@@ -629,10 +630,10 @@ public static partial class Level03Builder
         // la arquitectura sin linterna. El contraste lo ponen las lámparas de cada sala. Se calibra con capturas desde la cámara del jugador.
         RenderSettings.skybox = null;
         RenderSettings.ambientMode = AmbientMode.Flat;
-        RenderSettings.ambientLight = new Color(0.085f, 0.070f, 0.058f);
+        RenderSettings.ambientLight = new Color(0.040f, 0.033f, 0.027f);
         RenderSettings.fog = true;
         RenderSettings.fogMode = FogMode.ExponentialSquared;
-        RenderSettings.fogColor = new Color(0.06f, 0.045f, 0.035f);
+        RenderSettings.fogColor = new Color(0.036f, 0.027f, 0.021f);
         RenderSettings.fogDensity = 0.016f;
 
         VolumeProfile profile = NewProfile("Assets/_Project/Settings/Level03_Volume.asset");
@@ -646,7 +647,7 @@ public static partial class Level03Builder
         ColorAdjustments color = AddEffect<ColorAdjustments>(profile);
         color.saturation.Override(-14f);
         color.contrast.Override(16f);
-        color.postExposure.Override(0.1f);   // nivel más oscuro que el 2 (medido con la cámara del jugador, sin linterna): ver informe
+        color.postExposure.Override(-0.35f);   // nivel más oscuro que el 2 (medido con la cámara del jugador, sin linterna): ver informe
         WhiteBalance wb = AddEffect<WhiteBalance>(profile);
         wb.temperature.Override(14f);   // gradación cálida: sepia y ámbar, opuesta al azul petróleo del Nivel 2
         wb.tint.Override(4f);

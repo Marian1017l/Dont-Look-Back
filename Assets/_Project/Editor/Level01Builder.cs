@@ -267,10 +267,10 @@ public static class Level01Builder
     {
         RenderSettings.skybox = null;
         RenderSettings.ambientMode = AmbientMode.Flat;
-        RenderSettings.ambientLight = new Color(0.17f, 0.19f, 0.23f);   // base fría: sin linterna ni lámparas se reconoce la forma de las cosas
+        RenderSettings.ambientLight = new Color(0.085f, 0.095f, 0.115f);   // base fría y baja: sin linterna se intuye la forma de las cosas, pero hace falta la linterna para ver bien
         RenderSettings.fog = true;
         RenderSettings.fogMode = FogMode.ExponentialSquared;
-        RenderSettings.fogColor = new Color(0.11f, 0.12f, 0.14f);
+        RenderSettings.fogColor = new Color(0.066f, 0.072f, 0.084f);
         RenderSettings.fogDensity = 0.01f;
 
         // Postproceso global (sutil): tonemapping neutral, viñeta, grano, color y bloom leve
@@ -285,7 +285,7 @@ public static class Level01Builder
         ColorAdjustments color = AddEffect<ColorAdjustments>(profile);
         color.saturation.Override(-12f);
         color.contrast.Override(10f);
-        color.postExposure.Override(0.5f);
+        color.postExposure.Override(0f);
         Bloom bloom = AddEffect<Bloom>(profile);
         bloom.intensity.Override(0.3f);
         bloom.threshold.Override(1f);
@@ -769,21 +769,16 @@ public static class Level01Builder
 
     static void BuildHorror(Transform horror)
     {
-        // Fantasma TEMPORAL para el jumpscare: se reemplazará por el modelo real
-        GameObject ghost = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-        ghost.name = "TEMP_Ghost";
-        Object.DestroyImmediate(ghost.GetComponent<Collider>());
-        ghost.transform.localScale = new Vector3(0.7f, 1.0f, 0.7f);
-        Material mat = AssetDatabase.LoadAssetAtPath<Material>("Assets/_Project/Art/Materials/FantasmaPrueba.mat");
-        if (mat != null) ghost.GetComponent<Renderer>().sharedMaterial = mat;
-        ghost.transform.SetParent(T("Ghosts", horror));
-        ghost.SetActive(false);
+        // El demonio (Demon_APose) hace el jumpscare; ScreamerKit lo instancia desactivado
+        GameObject ghost = ScreamerKit.CreateGhost(T("Ghosts", horror));
 
         Jumpscare jumpscare = new GameObject("Jumpscare").AddComponent<Jumpscare>();
         jumpscare.transform.SetParent(T("JumpscarePoints", horror));
         jumpscare.scareObject = ghost;
         jumpscare.distance = 1.3f;
         jumpscare.duration = 1.0f;
+        jumpscare.standOnGround = true;
+        jumpscare.lungeDistance = 0.8f;
 
         AudioClip breath = AssetDatabase.LoadAssetAtPath<AudioClip>(BreathClip);
         // Respiración: el jugador debe quedarse quieto
