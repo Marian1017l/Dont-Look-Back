@@ -9,7 +9,7 @@ public class Jumpscare : MonoBehaviour
 {
     public GameObject scareObject;       // el modelo del susto (Demon_APose en los niveles; el prototipo usa un objeto temporal)
     public AudioSource scareSound;       // opcional: grito
-    public float distance = 1.5f;        // qué tan cerca de la cámara aparece
+    public float distance = 1f;        // qué tan cerca de la cámara aparece
     public float duration = 0.9f;
     [Tooltip("Modelos de cuerpo entero: se apoyan en el suelo (la base del modelo, sin importar dónde esté su pivote), no a la altura de los ojos")]
     public bool standOnGround = false;
@@ -18,11 +18,16 @@ public class Jumpscare : MonoBehaviour
     [Tooltip("Metros extra de donde parte el salto: aparece más lejos y se lanza hasta 'distance'")]
     public float lungeDistance = 0f;
     public float lungeTime = 0.12f;      // segundos que dura el salto
+    [Tooltip("Transform situado en el centro de la cabeza del demonio")]
+    public Transform headPoint;
 
     bool playing;
     bool fitted;
     Renderer[] renderers;
     Vector3 baseScale;
+    Rigidbody scareBody;
+    bool wasKinematic;
+    bool usedGravity;
 
     // Muestra el demonio quieto en una posición (por ejemplo delante del jugador durante un encuentro) mirando hacia 'facing'.
     // No hace nada si el susto está en curso. Hide() lo quita; Play() lo reutiliza para el ataque.
@@ -53,6 +58,17 @@ public class Jumpscare : MonoBehaviour
         Vector3 forward = Flat(cam.forward);
         float floorY = player != null ? player.transform.position.y : cam.position.y - 1.6f;   // el pivote del Player está en los pies
 
+        scareBody = scareObject.GetComponentInChildren<Rigidbody>();
+        if (scareBody != null)
+        {
+            wasKinematic = scareBody.isKinematic;
+            usedGravity = scareBody.useGravity;
+            scareBody.isKinematic = true;
+            scareBody.useGravity = false;
+            scareBody.linearVelocity = Vector3.zero;
+            scareBody.angularVelocity = Vector3.zero;
+        }
+
         scareObject.SetActive(true);
         Fit();
         if (scareSound != null) scareSound.Play();
@@ -60,7 +76,8 @@ public class Jumpscare : MonoBehaviour
         for (float t = 0f; t < time; t += Time.deltaTime)
         {
             float d = Mathf.Lerp(distance + lungeDistance, distance, lungeTime > 0f ? Mathf.Clamp01(t / lungeTime) : 1f);
-            if (standOnGround) PlaceAt(new Vector3(cam.position.x, floorY, cam.position.z) + forward * d, cam.position);
+            if (headPoint != null) PlaceHeadAt(cam, d);
+            else if (standOnGround) PlaceAt(new Vector3(cam.position.x, floorY, cam.position.z) + forward * d, cam.position);
             else
             {
                 scareObject.transform.position = cam.position + cam.forward * d;
@@ -70,7 +87,19 @@ public class Jumpscare : MonoBehaviour
         }
 
         scareObject.SetActive(false);
+        if (scareBody != null)
+        {
+            scareBody.isKinematic = wasKinematic;
+            scareBody.useGravity = usedGravity;
+        }
         playing = false;
+    }
+
+    void PlaceHeadAt(Transform cam, float d)
+    {
+        Transform t = scareObject.transform;
+        t.LookAt(cam);
+        t.position += cam.position + cam.forward * d - headPoint.position;
     }
 
     // Ajusta la escala una sola vez (el objeto debe estar activo para medirlo)
