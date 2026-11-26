@@ -206,6 +206,7 @@ public static partial class Level02Builder
         BuildAudio();
         BuildUI();
         BuildDressing();   // Level02Builder.Dressing.cs
+        ScreamerKit.BuildLevel2();   // demonio + triggers de screamer (tabla en ScreamerKit.cs)
 
         foreach (Transform t in architecture.GetComponentsInChildren<Transform>()) t.gameObject.isStatic = true;
         TidyHierarchy();
@@ -579,10 +580,10 @@ public static partial class Level02Builder
         // Más oscuro que el Nivel 1 (ambiente 0,17-0,23; luminancia media medida 0,42 frente a ~0,23 aquí): la forma de las salas se reconoce sin luces, pero el contraste lo ponen las lámparas
         RenderSettings.skybox = null;
         RenderSettings.ambientMode = AmbientMode.Flat;
-        RenderSettings.ambientLight = new Color(0.105f, 0.126f, 0.15f);
+        RenderSettings.ambientLight = new Color(0.05f, 0.06f, 0.075f);
         RenderSettings.fog = true;
         RenderSettings.fogMode = FogMode.ExponentialSquared;
-        RenderSettings.fogColor = new Color(0.04f, 0.06f, 0.07f);
+        RenderSettings.fogColor = new Color(0.024f, 0.036f, 0.042f);
         RenderSettings.fogDensity = 0.014f;
 
         VolumeProfile profile = NewProfile("Assets/_Project/Settings/Level02_Volume.asset");
@@ -596,7 +597,7 @@ public static partial class Level02Builder
         ColorAdjustments color = AddEffect<ColorAdjustments>(profile);
         color.saturation.Override(-10f);
         color.contrast.Override(14f);
-        color.postExposure.Override(0.78f);
+        color.postExposure.Override(0.25f);
         WhiteBalance wb = AddEffect<WhiteBalance>(profile);
         wb.temperature.Override(-12f);   // gradación fría: azul petróleo
         wb.tint.Override(-4f);
