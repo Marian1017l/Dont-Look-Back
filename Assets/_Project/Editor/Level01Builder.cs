@@ -778,10 +778,11 @@ public static class Level01Builder
         jumpscare.distance = 1.3f;
         jumpscare.duration = 1.0f;
         jumpscare.standOnGround = true;
+        jumpscare.targetHeight = 2.3f;
         jumpscare.lungeDistance = 0.8f;
 
         AudioClip breath = AssetDatabase.LoadAssetAtPath<AudioClip>(BreathClip);
-        // Respiración: el jugador debe quedarse quieto
+        // Respiración detrás y demonio delante: el jugador debe quedarse quieto y no mirar atrás
         Encounter("Breathing_Corridor_West", Cell(1, 1), new Vector3(cell * 3f, wallH, cell), breath, jumpscare, 1.0f, 7f);
         Encounter("Breathing_Archive", Cell(4, 2), new Vector3(cell, wallH, cell), breath, jumpscare, 1.5f, 8f);
         Encounter("Breathing_DarkHall", Cell(9, 1), new Vector3(cell * 3f, wallH, cell), breath, jumpscare, 2.0f, 8f);
@@ -809,7 +810,7 @@ public static class Level01Builder
         src.volume = 1f;
 
         LookBackEncounter enc = go.AddComponent<LookBackEncounter>();
-        enc.mode = LookBackEncounter.Mode.Freeze;
+        enc.mode = LookBackEncounter.Mode.Confront;   // respiración detrás + el demonio aparece delante: mirar atrás (>120°) o moverse te atrapa
         enc.stepsAudio = src;
         enc.jumpscare = jumpscare;
         enc.warningTime = warning;

@@ -98,6 +98,7 @@ public static class ScreamerKit
         jumpscare.distance = 1.3f;
         jumpscare.duration = 1.0f;
         jumpscare.standOnGround = true;
+        jumpscare.targetHeight = 2.3f;
         jumpscare.lungeDistance = 0.8f;
 
         Transform encounters = new GameObject("Encounters").transform;

@@ -1338,7 +1338,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1e51a8d0be103ef4c935726202e041bf, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LookBackEncounter
-  mode: 1
+  mode: 2
   stepsAudio: {fileID: 600232691}
   safeZone: {fileID: 0}
   jumpscare: {fileID: 0}
@@ -2036,7 +2036,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1e51a8d0be103ef4c935726202e041bf, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LookBackEncounter
-  mode: 1
+  mode: 2
   stepsAudio: {fileID: 887411802}
   safeZone: {fileID: 0}
   jumpscare: {fileID: 0}
@@ -2361,6 +2361,7 @@ MonoBehaviour:
   distance: 1.5
   duration: 0.9
   standOnGround: 1
+  targetHeight: 2.3
   lungeDistance: 0.8
   lungeTime: 0.12
 --- !u!1001 &183545356
@@ -27582,7 +27583,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1e51a8d0be103ef4c935726202e041bf, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LookBackEncounter
-  mode: 1
+  mode: 2
   stepsAudio: {fileID: 671118432}
   safeZone: {fileID: 0}
   jumpscare: {fileID: 0}
