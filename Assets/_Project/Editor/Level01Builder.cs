@@ -139,6 +139,7 @@ public static class Level01Builder
         foreach (Transform t in architecture.GetComponentsInChildren<Transform>()) t.gameObject.isStatic = true;
 
         Level01Intro.AddIntro(UnityEngine.SceneManagement.SceneManager.GetActiveScene());
+        HudSetup.AddHud(UnityEngine.SceneManagement.SceneManager.GetActiveScene());
         EditorSceneManager.SaveScene(UnityEngine.SceneManagement.SceneManager.GetActiveScene(), ScenePath);
         AddToBuildSettings(ScenePath);
         AssetDatabase.SaveAssets();

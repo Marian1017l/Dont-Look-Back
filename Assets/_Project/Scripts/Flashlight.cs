@@ -121,18 +121,8 @@ public class Flashlight : MonoBehaviour
 
     void OnGUI()
     {
-        GUIStyle label = new GUIStyle(GUI.skin.label) { fontSize = 20, alignment = TextAnchor.MiddleCenter };
-        label.normal.textColor = new Color(1f, 1f, 1f, 0.9f);
-        if (messageTimer > 0) GUI.Label(new Rect(0, Screen.height * 0.7f, Screen.width, 40), message, label);
-
-        if (!hasFlashlight) return;
-
-        // Barra de batería discreta, abajo a la izquierda
-        Rect bar = new Rect(24, Screen.height - 36, 110, 10);
-        GUI.color = new Color(0, 0, 0, 0.6f);
-        GUI.DrawTexture(bar, Texture2D.whiteTexture);
-        GUI.color = charge > lowCharge ? new Color(0.85f, 0.85f, 0.7f, 0.9f) : new Color(0.9f, 0.2f, 0.15f, 0.9f);
-        GUI.DrawTexture(new Rect(bar.x, bar.y, bar.width * charge, bar.height), Texture2D.whiteTexture);
-        GUI.color = Color.white;
+        // La barra de batería ahora la dibuja HudOverlay (arriba a la izquierda); aquí solo quedan los avisos
+        if (Event.current.type != EventType.Repaint) return;
+        if (messageTimer > 0) HudOverlay.Toast(Screen.height * 0.7f, message, Mathf.Clamp01(messageTimer / 0.4f));
     }
 }

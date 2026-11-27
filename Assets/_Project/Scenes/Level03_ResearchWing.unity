@@ -41928,6 +41928,55 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1091419718}
   m_Mesh: {fileID: 2106175376}
+--- !u!1 &1094547063
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1094547065}
+  - component: {fileID: 1094547064}
+  m_Layer: 0
+  m_Name: HudOverlay
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1094547064
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1094547063}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1e6ce140eb1ee7344a6c4cfdd1f6b328, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::HudOverlay
+  heartIcon: {fileID: 2800000, guid: e6e35e7720a16ce44b4867c06dca41ee, type: 3}
+  flashlightIcon: {fileID: 2800000, guid: 8ff7794c4696aa04d9f9a93d46a0b31c, type: 3}
+  health: {fileID: 800851184}
+  flashlight: {fileID: 610962604}
+  inventoryKey: TAB
+--- !u!4 &1094547065
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1094547063}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1098111373
 GameObject:
   m_ObjectHideFlags: 0
@@ -85309,3 +85358,4 @@ SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
   - {fileID: 320201764}
+  - {fileID: 1094547065}
