@@ -16,12 +16,14 @@ public static class ScreamerKit
     public const string ScreamClip = "Assets/Sounds/Scary-Screamer-Sound-Effect-_Free_.mp3";
     public const string BreathClip ="Assets/Sounds/cryptologymedia-breathing-160445.mp3";
 
-    // Un trigger: nombre, centro en el suelo (x, y del piso, z), tamaño de la caja, segundos hasta que suena el aviso y duración de la amenaza
+    // Un trigger: nombre, centro en el suelo (x, y del piso, z), tamaño de la caja, segundos hasta que suena el aviso y duración de la amenaza.
+    // watch = false: encuentro de RESPIRACIÓN (suena detrás; no moverse ni girarse; el demonio aparece delante).
+    // watch = true:  encuentro de DEMONIO (sin respiración; se puede caminar, pero hay que mantener al demonio a la vista).
     public struct Spot
     {
-        public string name; public Vector3 center; public Vector3 size; public float warning; public float duration;
-        public Spot(string n, float x, float z, float w, float d, float sx, float sz, float floorY = 0f)
-        { name = n; center = new Vector3(x, floorY, z); size = new Vector3(sx, 3.2f, sz); warning = w; duration = d; }
+        public string name; public Vector3 center; public Vector3 size; public float warning; public float duration; public bool watch;
+        public Spot(string n, float x, float z, float w, float d, float sx, float sz, float floorY = 0f, bool watch = false)
+        { name = n; center = new Vector3(x, floorY, z); size = new Vector3(sx, 3.2f, sz); warning = w; duration = d; this.watch = watch; }
     }
 
     // Nivel 2 (celdas de 2 m, ver plano en Level02Builder). Del tranquilo al intenso: mantenimiento -> servicio -> almacén -> aislamiento -> archivo
@@ -30,9 +32,9 @@ public static class ScreamerKit
         new Spot("Breathing_Maintenance",      10f, 16f, 1.5f, 7f, 6f, 6f),
         new Spot("Breathing_ServiceCorridor",  21f, 17f, 1.0f, 6f, 6f, 2f),
         new Spot("Breathing_OldStorage",       22f, 11f, 1.5f, 8f, 4f, 4f),
-        new Spot("Breathing_ServiceLink",      31f, 10f, 1.0f, 7f, 2f, 6f),
+        new Spot("Watch_ServiceLink",          31f, 10f, 1.0f, 14f, 2f, 6f, 0f, true),
         new Spot("Breathing_IsolationHall",    34f,  5f, 1.8f, 8f, 8f, 2f),
-        new Spot("Breathing_RestrictedArchive",46f, 18f, 1.5f, 9f, 6f, 6f),
+        new Spot("Watch_RestrictedArchive",    46f, 18f, 1.5f, 16f, 6f, 6f, 0f, true),
     };
 
     // Nivel 3 (celdas de 2 m, ver plano en Level03Builder). Del corredor de observación al vestíbulo de S-9
@@ -40,8 +42,8 @@ public static class ScreamerKit
     {
         new Spot("Breathing_ObservationCorridor", 23f, 13f, 1.5f, 7f, 6f, 2f),
         new Spot("Breathing_ProjectionRoom",      29f, 19f, 1.5f, 7f, 4f, 4f),
-        new Spot("Breathing_TestChamber",         22f, 18f, 1.2f, 8f, 6f, 6f),
-        new Spot("Breathing_ColdLab",             14f, 17f, 1.5f, 8f, 5f, 4f),
+        new Spot("Watch_TestChamber",            22f, 18f, 1.2f, 14f, 6f, 6f, 0f, true),
+        new Spot("Watch_ColdLab",                14f, 17f, 1.5f, 14f, 5f, 4f, 0f, true),
         new Spot("Breathing_DirectorOffice",      11f, 24f, 1.0f, 8f, 6f, 5f),
         new Spot("Breathing_VestibuleS9",         18f, 25f, 2.0f, 9f, 3f, 5f),
     };
@@ -326,20 +328,26 @@ public static class ScreamerKit
         box.isTrigger = true;
         box.size = s.size;
 
-        GameObject sound = new GameObject("BreathingSource");
-        sound.transform.SetParent(go.transform, false);
-        AudioSource src = sound.AddComponent<AudioSource>();
-        src.clip = clip;
-        src.loop = true;
-        src.playOnAwake = false;
-        src.spatialBlend = 1f;
-        src.rolloffMode = AudioRolloffMode.Linear;
-        src.minDistance = 1f;
-        src.maxDistance = 14f;
-        src.volume = 1f;
+        AudioSource src = null;
+        if (!s.watch)   // el encuentro de demonio no lleva respiración: solo la linterna que falla
+        {
+            GameObject sound = new GameObject("BreathingSource");
+            sound.transform.SetParent(go.transform, false);
+            src = sound.AddComponent<AudioSource>();
+            src.clip = clip;
+            src.loop = true;
+            src.playOnAwake = false;
+            src.spatialBlend = 1f;
+            src.rolloffMode = AudioRolloffMode.Linear;
+            src.minDistance = 1f;
+            src.maxDistance = 14f;
+            src.volume = 1f;
+        }
 
         LookBackEncounter enc = go.AddComponent<LookBackEncounter>();
-        enc.mode = LookBackEncounter.Mode.Confront;   // el demonio aparece delante: mirar atrás (>120°) o moverse te atrapa
+        // Respiración: el demonio aparece delante y mirar atrás (>120°) o moverse te atrapa.
+        // Demonio (Watch): puedes caminar, pero perderlo de vista (fuera de 120°) te atrapa.
+        enc.mode = s.watch ? LookBackEncounter.Mode.Watch : LookBackEncounter.Mode.Confront;
         enc.maxAngle = 120f;
         enc.demonDistance = 5f;
         enc.stepsAudio = src;
