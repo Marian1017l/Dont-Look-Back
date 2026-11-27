@@ -53,6 +53,7 @@ public class LookBackEncounter : MonoBehaviour
     float timer;
     float audioVolume = 1f;
     bool demonShown;        // el demonio ya está en su sitio (si no cabe, espera a que haya hueco libre)
+    bool demonSkipped;      // no cupo en ningún sitio: esta vez el encuentro sigue sin demonio visible
     float demonWait;
     float nextGlitch;
     Flashlight flashlight;
@@ -131,7 +132,7 @@ public class LookBackEncounter : MonoBehaviour
     bool Broken()
     {
         // Mirar atrás: ángulo horizontal entre hacia dónde miraba al empezar y hacia dónde mira ahora
-        if (mode == Mode.Watch) return demonShown && LostDemon();
+        if (mode == Mode.Watch) return demonShown && !demonSkipped && LostDemon();
         bool checkLook = mode == Mode.NoLook || (mode == Mode.Confront && punishLookBack);
         bool checkMove = mode == Mode.Freeze || (mode == Mode.Confront && punishMovement);
         if (checkLook && Vector3.Angle(savedForward, Flat(cam.forward)) > maxAngle) return true;
@@ -185,6 +186,7 @@ public class LookBackEncounter : MonoBehaviour
             if (!stepsAudio.isPlaying) stepsAudio.Play();
         }
         demonShown = false;
+        demonSkipped = false;
         demonWait = 0f;
         if (UsesDemon()) demonShown = TryShowDemon(true);
     }
@@ -199,6 +201,9 @@ public class LookBackEncounter : MonoBehaviour
         Vector3 dir = demonSide == DemonSide.Behind ? -savedForward : savedForward;
         bool ok = Jumpscare.FindSpot(cam.position, player.position.y, dir, demonDistance, 2.5f, 40f, out Vector3 spotDir, out float dist);
         if (!ok && strict) return false;
+        // Sin hueco ideal tras esperar: se acepta menos espacio (1,5 m) y más giro (90°). Si ni así cabe, no aparece (nunca dentro de una pared).
+        if (!ok) ok = Jumpscare.FindSpot(cam.position, player.position.y, dir, demonDistance, 1.5f, 90f, out spotDir, out dist);
+        if (!ok) { demonSkipped = true; return true; }
         Vector3 pos = player.position + spotDir * dist;   // el pivote del Player está en los pies
         demonPos = pos;
         jumpscare.Show(pos, player.position);

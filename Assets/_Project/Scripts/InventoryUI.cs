@@ -171,7 +171,7 @@ public class InventoryUI : MonoBehaviour
 
     void TryOpen()
     {
-        if (UIState.PanelOpen) return;
+        if (UIState.PanelOpen || UIState.IntroPlaying) return;   // tampoco durante la apertura de ojos
         PlayerHealth health = PlayerHealth.Instance;
         if (health != null && health.IsDead) return;
         player = FindFirstObjectByType<PlayerController>();
