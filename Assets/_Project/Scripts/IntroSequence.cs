@@ -12,6 +12,9 @@ public class IntroSequence : MonoBehaviour
 
     static bool playedBefore;                 // sobrevive a la recarga de escena
 
+    // Partida nueva desde el menú: la apertura de ojos vuelve a ser la completa
+    public static void ResetForNewGame() => playedBefore = false;
+
     enum Phase { Eyes, Tutorial, Done }
     Phase phase = Phase.Eyes;
     float t;

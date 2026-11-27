@@ -308,7 +308,7 @@ public static partial class Level03Builder
         box.isTrigger = true;
         box.size = new Vector3(3.6f, 2.4f, 4.0f);
         LevelExit exit = exitSlab.AddComponent<LevelExit>();
-        exit.nextScene = "";   // el Nivel 4 no existe todavía: LevelExit muestra la pantalla final y R reinicia
+        exit.nextScene = GameFlow.EndingScene;   // tras el Nivel 3 viene la escena final (salida del hospital)
         exit.message = "Fin del nivel 3";
         exitSlab.SetActive(false);
 

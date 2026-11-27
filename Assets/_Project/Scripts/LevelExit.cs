@@ -27,7 +27,7 @@ public class LevelExit : MonoBehaviour
         if (health != null) PlayerHealth.CarriedHealth = health.Health;
         Flashlight flashlight = other.GetComponentInChildren<Flashlight>();
         if (flashlight != null) Flashlight.CarriedCharge = flashlight.Charge;
-        UnityEngine.SceneManagement.SceneManager.LoadScene(nextScene);
+        GameFlow.LoadWithFade(nextScene);   // fundido a negro y carga de la siguiente escena
     }
 
     void Update()
