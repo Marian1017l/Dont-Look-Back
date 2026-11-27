@@ -104,8 +104,16 @@ public class Flashlight : MonoBehaviour
         float low = Mathf.Clamp01(charge / lowCharge);
         float intensity = maxIntensity * Mathf.Lerp(0.35f, 1f, low);
         if (charge < lowCharge && Random.value < 0.01f + 0.08f * (1f - low)) intensity *= Random.Range(0f, 0.4f);
+        if (glitchTimer > 0f)   // interferencia: la luz se corta a ratos (el demonio aparece o desaparece en esos instantes)
+        {
+            glitchTimer -= Time.deltaTime;
+            intensity *= Random.value < 0.6f ? 0f : 0.2f;
+        }
         spot.intensity = intensity;
     }
+
+    float glitchTimer;
+    public void Glitch(float seconds) => glitchTimer = Mathf.Max(glitchTimer, seconds);
 
     void SetOn(bool on)
     {

@@ -13,7 +13,8 @@ using UnityEngine.SceneManagement;
 public static class ScreamerKit
 {
     public const string DemonPrefab = "Assets/Demon Horror Creature with Weapon/Prefabs/Demon_APose.prefab";
-    public const string BreathClip = "Assets/Sounds/cryptologymedia-breathing-160445.mp3";
+    public const string ScreamClip = "Assets/Sounds/Scary-Screamer-Sound-Effect-_Free_.mp3";
+    public const string BreathClip ="Assets/Sounds/cryptologymedia-breathing-160445.mp3";
 
     // Un trigger: nombre, centro en el suelo (x, y del piso, z), tamaño de la caja, segundos hasta que suena el aviso y duración de la amenaza
     public struct Spot
@@ -99,7 +100,15 @@ public static class ScreamerKit
         jumpscare.duration = 1.0f;
         jumpscare.standOnGround = true;
         jumpscare.targetHeight = 2.3f;
-        jumpscare.lungeDistance = 0.8f;
+
+        // Grito del ataque (sin esto el susto salía mudo)
+        GameObject scream = new GameObject("ScreamSound");
+        scream.transform.SetParent(jumpscare.transform, false);
+        AudioSource screamSrc = scream.AddComponent<AudioSource>();
+        screamSrc.clip = AssetDatabase.LoadAssetAtPath<AudioClip>(ScreamClip);
+        screamSrc.playOnAwake = false;
+        screamSrc.spatialBlend = 0f;
+        jumpscare.scareSound = screamSrc;
 
         Transform encounters = new GameObject("Encounters").transform;
         encounters.SetParent(horror, false);
@@ -120,20 +129,39 @@ public static class ScreamerKit
             if (go.name == "Horror") { Object.DestroyImmediate(go); break; }
     }
 
-    // El demonio del susto: instancia del prefab, desactivado y sin colisiones. Si falta el prefab usa la cápsula temporal de antes.
+    // El demonio del susto. Prioridad: el modelo animado de la carpeta Skins (Mixamo, con animación de pie); si no está,
+    // el Demon_APose del pack; y si tampoco, la cápsula temporal. Siempre queda desactivado y sin colisiones.
+    public const string SkinFbx = "Assets/Skins/Ch30_nonPBR@Standing Idle.fbx";
+    public const string SkinController = "Assets/AnimacionCtrl/DemonSkin.controller";
+    const string SkinMatDir = "Assets/_Project/Art/Materials/DemonSkin";
+
     public static GameObject CreateGhost(Transform parent)
     {
+        EnsureSkinImport();
+        GameObject skin = AssetDatabase.LoadAssetAtPath<GameObject>(SkinFbx);
         GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(DemonPrefab);
         GameObject ghost;
-        if (prefab != null)
+        if (skin != null)
         {
+            ghost = (GameObject)PrefabUtility.InstantiatePrefab(skin, parent);
+            ghost.name = "Demon";
+            foreach (Collider c in ghost.GetComponentsInChildren<Collider>()) c.enabled = false;
+            Animator anim = ghost.GetComponentInChildren<Animator>();
+            if (anim == null) anim = ghost.AddComponent<Animator>();   // el FBX viene sin avatar: Unity no le pone Animator
+            anim.runtimeAnimatorController = EnsureSkinController();
+            anim.applyRootMotion = false;
+            foreach (Object o in AssetDatabase.LoadAllAssetsAtPath(SkinFbx)) if (o is Avatar av) { anim.avatar = av; break; }
+        }
+        else if (prefab != null)
+        {
+            Debug.LogWarning("ScreamerKit: no se encontró " + SkinFbx + ". Se usa Demon_APose.");
             ghost = (GameObject)PrefabUtility.InstantiatePrefab(prefab, parent);
             ghost.name = "Demon_APose";
             foreach (Collider c in ghost.GetComponentsInChildren<Collider>()) c.enabled = false;
         }
         else
         {
-            Debug.LogError("ScreamerKit: no se encontró " + DemonPrefab + ". Se usa la cápsula temporal TEMP_Ghost.");
+            Debug.LogError("ScreamerKit: no se encontró ningún demonio. Se usa la cápsula temporal TEMP_Ghost.");
             ghost = GameObject.CreatePrimitive(PrimitiveType.Capsule);
             ghost.name = "TEMP_Ghost";
             Object.DestroyImmediate(ghost.GetComponent<Collider>());
@@ -144,6 +172,95 @@ public static class ScreamerKit
         }
         ghost.SetActive(false);
         return ghost;
+    }
+
+    // Textura de cada material del FBX. Las texturas del FBX no se extraen solas, así que se usan las ya extraídas de
+    // Characters/demon (son exactamente las mismas, comparadas byte a byte). No borrar esa carpeta.
+    const string SkinTexDir = "Assets/Characters/demon/textures";
+    static readonly string[,] SkinMaterials = { { "Ch30_Body", "1001" }, { "Ch30_Body1", "1002" } };
+
+    // Deja el FBX de Skins listo: con avatar (para que tenga Animator), animación en bucle y materiales URP con su textura.
+    // Solo reimporta si algo cambia, así que ejecutarlo varias veces no cuesta nada.
+    static void EnsureSkinImport()
+    {
+        ModelImporter imp = AssetImporter.GetAtPath(SkinFbx) as ModelImporter;
+        if (imp == null) return;
+        bool dirty = false;
+
+        if (imp.avatarSetup == ModelImporterAvatarSetup.NoAvatar) { imp.avatarSetup = ModelImporterAvatarSetup.CreateFromThisModel; dirty = true; }
+
+        // El clip de Mixamo no viene en bucle: se activa para que el demonio respire sin congelarse
+        ModelImporterClipAnimation[] clips = imp.clipAnimations.Length > 0 ? imp.clipAnimations : imp.defaultClipAnimations;
+        bool loopChanged = false;
+        foreach (ModelImporterClipAnimation c in clips) if (!c.loopTime) { c.loopTime = true; loopChanged = true; }
+        if (loopChanged) { imp.clipAnimations = clips; dirty = true; }
+
+        for (int i = 0; i < SkinMaterials.GetLength(0); i++)
+        {
+            var key = new AssetImporter.SourceAssetIdentifier(typeof(Material), SkinMaterials[i, 0]);
+            if (imp.GetExternalObjectMap().ContainsKey(key)) continue;
+            Material mat = EnsureSkinMaterial(SkinMaterials[i, 0], SkinMaterials[i, 1]);
+            if (mat == null) continue;
+            imp.AddRemap(key, mat);
+            dirty = true;
+        }
+        if (dirty) imp.SaveAndReimport();
+    }
+
+    static Material EnsureSkinMaterial(string name, string id)
+    {
+        Texture2D diffuse = AssetDatabase.LoadAssetAtPath<Texture2D>(SkinTexDir + "/Ch30_" + id + "_Diffuse.png");
+        Texture2D normal = AssetDatabase.LoadAssetAtPath<Texture2D>(SkinTexDir + "/Ch30_" + id + "_Normal.png");
+        Shader lit = Shader.Find("Universal Render Pipeline/Lit");
+        if (diffuse == null || lit == null)
+        {
+            Debug.LogWarning("ScreamerKit: faltan las texturas Ch30_" + id + " en " + SkinTexDir + "; el demonio saldrá sin textura.");
+            return null;
+        }
+        // El mapa de normales debe estar importado como "Normal map" o la luz se ve mal
+        string normalPath = SkinTexDir + "/Ch30_" + id + "_Normal.png";
+        TextureImporter ti = normal != null ? AssetImporter.GetAtPath(normalPath) as TextureImporter : null;
+        if (ti != null && ti.textureType != TextureImporterType.NormalMap) { ti.textureType = TextureImporterType.NormalMap; ti.SaveAndReimport(); }
+
+        if (!AssetDatabase.IsValidFolder(SkinMatDir))
+        {
+            if (!AssetDatabase.IsValidFolder("Assets/_Project/Art/Materials")) AssetDatabase.CreateFolder("Assets/_Project/Art", "Materials");
+            AssetDatabase.CreateFolder("Assets/_Project/Art/Materials", "DemonSkin");
+        }
+        string path = SkinMatDir + "/DemonSkin_" + name + ".mat";
+        Material m = AssetDatabase.LoadAssetAtPath<Material>(path);
+        if (m == null) { m = new Material(lit); AssetDatabase.CreateAsset(m, path); }
+        m.SetTexture("_BaseMap", diffuse);
+        m.SetColor("_BaseColor", Color.white);
+        if (normal != null) { m.SetTexture("_BumpMap", normal); m.EnableKeyword("_NORMALMAP"); }
+        m.SetFloat("_Smoothness", 0.25f);
+        m.SetFloat("_Metallic", 0f);
+        EditorUtility.SetDirty(m);
+        AssetDatabase.SaveAssets();
+        return m;
+    }
+
+    // Animator con un único estado: la animación del FBX (en bucle, ver EnsureSkinImport)
+    static RuntimeAnimatorController EnsureSkinController()
+    {
+        AnimationClip clip = null;
+        foreach (Object o in AssetDatabase.LoadAllAssetsAtPath(SkinFbx))
+            if (o is AnimationClip c && !c.name.StartsWith("__preview__")) { clip = c; break; }
+
+        var controller = AssetDatabase.LoadAssetAtPath<UnityEditor.Animations.AnimatorController>(SkinController);
+        if (controller == null) controller = UnityEditor.Animations.AnimatorController.CreateAnimatorControllerAtPath(SkinController);
+        var sm = controller.layers[0].stateMachine;
+        if (sm.states.Length == 0)
+        {
+            var state = sm.AddState("Idle");
+            state.motion = clip;
+            sm.defaultState = state;
+        }
+        else sm.states[0].state.motion = clip;
+        if (clip == null) Debug.LogWarning("ScreamerKit: no se encontró la animación dentro de " + SkinFbx);
+        EditorUtility.SetDirty(controller);
+        AssetDatabase.SaveAssets();
+        return controller;
     }
 
     static void CreateEncounter(Transform parent, Spot s, AudioClip clip, Jumpscare jumpscare)

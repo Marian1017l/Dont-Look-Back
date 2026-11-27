@@ -18,6 +18,8 @@ public class PlayerHealth : MonoBehaviour
     public float stunTime = 0.5f;            // el jugador queda paralizado un instante al ser golpeado
     public float deathDelay = 1.4f;          // tiempo del jumpscare antes del fundido
     public float fadeTime = 1f;
+    [Tooltip("Segundos que la pantalla se tiñe de rojo al recibir un golpe (se desvanece sola)")]
+    public float redScreenTime = 3.5f;
 
     // Salud con la que se entró al nivel (la guarda LevelExit al cambiar de escena). -1 = nivel inicial: salud llena.
     // También se usa al reiniciar tras morir: el nivel vuelve a empezar con la salud con la que se entró.
@@ -32,6 +34,7 @@ public class PlayerHealth : MonoBehaviour
 
     float baseSpeed;
     float flash;
+    float redTimer;
     float fade;
     Texture2D vignette;
 
@@ -55,6 +58,7 @@ public class PlayerHealth : MonoBehaviour
         if (IsDead) return;
         Health = Mathf.Max(0f, Health - amount);
         flash = 1f;
+        redTimer = redScreenTime;
         ApplySpeed();
 
         if (Health <= 0f) { IsDead = true; StartCoroutine(Die()); }
@@ -114,6 +118,7 @@ public class PlayerHealth : MonoBehaviour
     void Update()
     {
         flash = Mathf.MoveTowards(flash, 0f, Time.deltaTime * 2.5f);
+        if (redTimer > 0f) redTimer -= Time.deltaTime;
         if (!UIState.PanelOpen && Keyboard.current != null && Keyboard.current.hKey.wasPressedThisFrame) UseStoredBandage();
     }
 
@@ -121,11 +126,13 @@ public class PlayerHealth : MonoBehaviour
     {
         Rect full = new Rect(0, 0, Screen.width, Screen.height);
 
-        float hurt = 1f - Health / maxHealth;
-        if (hurt > 0f && !IsDead)
+        // Al recibir un golpe la pantalla se tiñe de rojo unos segundos y vuelve a la normalidad (la vida ya se ve en la barra)
+        if (redTimer > 0f && !IsDead)
         {
-            float pulse = 0.08f * Mathf.Sin(Time.time * 4f);
-            GUI.color = new Color(1f, 1f, 1f, Mathf.Clamp01(hurt * 1.6f + pulse));
+            float k = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(redTimer / redScreenTime));
+            GUI.color = new Color(0.55f, 0.02f, 0.02f, 0.34f * k);
+            GUI.DrawTexture(full, Texture2D.whiteTexture);
+            GUI.color = new Color(1f, 1f, 1f, k);
             GUI.DrawTexture(full, vignette);
         }
         if (flash > 0f)

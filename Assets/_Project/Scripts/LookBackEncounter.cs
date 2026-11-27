@@ -18,6 +18,8 @@ public class LookBackEncounter : MonoBehaviour
     public Collider safeZone;            // opcional: al entrar aquí el encuentro termina sin castigo
     public Jumpscare jumpscare;          // opcional: susto al atraparte
     public float warningTime = 1.5f;     // tiempo entre entrar al trigger y que suene el aviso
+    [Tooltip("Segundos extra de tensión antes de que aparezca la amenaza: la respiración sube poco a poco y la linterna falla cada vez más")]
+    public float buildUpTime = 4f;
     public float duration = 6f;          // cuánto dura la amenaza
     public float soundDistance = 2f;     // a qué distancia detrás del jugador suena
     [Range(30, 180)]
@@ -49,6 +51,9 @@ public class LookBackEncounter : MonoBehaviour
     enum State { Idle, Warning, Active, Done }
     State state = State.Idle;
     float timer;
+    float audioVolume = 1f;
+    float nextGlitch;
+    Flashlight flashlight;
     bool armed;
     Vector3 savedForward;
     Vector3 startPos;
@@ -63,7 +68,10 @@ public class LookBackEncounter : MonoBehaviour
         player = other.transform;
         cam = Camera.main.transform;
         state = State.Warning;
-        timer = warningTime;
+        timer = warningTime + buildUpTime;
+        nextGlitch = 0f;
+        if (stepsAudio != null) audioVolume = stepsAudio.volume;
+        if (flashlight == null) flashlight = FindFirstObjectByType<Flashlight>();
         threats++;
     }
 
@@ -80,6 +88,7 @@ public class LookBackEncounter : MonoBehaviour
         if (state == State.Warning)
         {
             if (timer <= 0) StartThreat();
+            else BuildUp();
             return;
         }
 
@@ -88,6 +97,26 @@ public class LookBackEncounter : MonoBehaviour
 
         if (Broken()) { Caught(); return; }
         if (timer <= 0) End();
+    }
+
+    // Últimos segundos antes de que aparezca la amenaza: la respiración empieza muy baja detrás del jugador y sube,
+    // y la linterna falla cada vez con más frecuencia. El jugador siente que algo se acerca antes de verlo.
+    void BuildUp()
+    {
+        if (buildUpTime <= 0f || timer > buildUpTime) return;
+        float build = Mathf.Clamp01(1f - timer / buildUpTime);   // 0 al empezar la tensión, 1 justo antes de aparecer
+        if (stepsAudio != null)
+        {
+            stepsAudio.transform.position = cam.position - Flat(cam.forward) * soundDistance;
+            stepsAudio.volume = audioVolume * build * build;
+            if (!stepsAudio.isPlaying) stepsAudio.Play();
+        }
+        nextGlitch -= Time.deltaTime;
+        if (flashlight != null && nextGlitch <= 0f)
+        {
+            flashlight.Glitch(0.15f + 0.2f * build);
+            nextGlitch = Mathf.Lerp(1.8f, 0.4f, build) + Random.Range(0f, 0.4f);
+        }
     }
 
     bool Broken()
@@ -143,7 +172,8 @@ public class LookBackEncounter : MonoBehaviour
         if (stepsAudio != null)
         {
             stepsAudio.transform.position = cam.position - savedForward * soundDistance;   // detrás del jugador
-            stepsAudio.Play();
+            stepsAudio.volume = audioVolume;
+            if (!stepsAudio.isPlaying) stepsAudio.Play();
         }
         if ((mode == Mode.Confront || mode == Mode.Watch) && jumpscare != null) ShowDemonAhead();
     }
@@ -162,7 +192,7 @@ public class LookBackEncounter : MonoBehaviour
 
     void End()
     {
-        if (stepsAudio != null) stepsAudio.Stop();
+        if (stepsAudio != null) { stepsAudio.Stop(); stepsAudio.volume = audioVolume; }
         if ((mode == Mode.Confront || mode == Mode.Watch) && jumpscare != null) jumpscare.Hide();
         threats = Mathf.Max(0, threats - 1);
         state = onlyOnce ? State.Done : State.Idle;

@@ -781,7 +781,6 @@ public static class Level01Builder
         jumpscare.duration = 1.0f;
         jumpscare.standOnGround = true;
         jumpscare.targetHeight = 2.3f;
-        jumpscare.lungeDistance = 0.8f;
 
         AudioClip breath = AssetDatabase.LoadAssetAtPath<AudioClip>(BreathClip);
         // Respiración detrás y demonio delante: el jugador debe quedarse quieto y no mirar atrás
