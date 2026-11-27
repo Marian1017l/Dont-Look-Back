@@ -6,10 +6,12 @@ using UnityEngine;
 //  - Freeze (respiración detrás): si el jugador se mueve más de moveTolerance, lo atacan.
 //  - Confront (respiración detrás + el demonio aparece DELANTE): mirar al demonio es seguro, pero girar más de maxAngle
 //    (mirar atrás) o moverse más de moveTolerance lo atrae. Es la combinación de los dos modos anteriores.
+//  - Watch (el demonio aparece delante): el jugador SÍ puede moverse, pero debe mantener al demonio dentro de su campo de visión
+//    (watchViewAngle, 120° en total). Si lo pierde de vista más de watchGrace segundos, lo atacan.
 // Si hay PlayerHealth en la escena el ataque quita salud; si no, usa las vidas del prototipo.
 public class LookBackEncounter : MonoBehaviour
 {
-    public enum Mode { NoLook, Freeze, Confront }
+    public enum Mode { NoLook, Freeze, Confront, Watch }
 
     public Mode mode = Mode.NoLook;
     public AudioSource stepsAudio;       // sonido del aviso (pasos o respiración)
@@ -22,7 +24,21 @@ public class LookBackEncounter : MonoBehaviour
     public float maxAngle = 120f;        // NoLook: giro permitido antes de perder
     public float graceTime = 0.8f;       // Freeze: tiempo para reaccionar y detenerse
     public float moveTolerance = 0.4f;   // Freeze y Confront: metros que se pueden desplazar sin perder
-    public float demonDistance = 5f;     // Confront: a cuántos metros delante aparece el demonio (se acorta si hay una pared)
+    public float demonDistance = 5f;     // Confront: a cuántos metros del jugador aparece el demonio (se acorta si hay una pared)
+    public enum DemonSide { Ahead, Behind }
+    [Tooltip("Confront: dónde aparece el demonio. Ahead = delante (mirarlo es seguro). Behind = detrás (verlo al girar activa el susto)")]
+    public DemonSide demonSide = DemonSide.Ahead;
+    [Tooltip("Confront: moverse más de moveTolerance activa el susto")]
+    public bool punishMovement = true;
+    [Tooltip("Confront: girar la cámara más de maxAngle (mirar atrás) activa el susto")]
+    public bool punishLookBack = true;
+    [Header("Modo Watch")]
+    [Range(40, 180)]
+    [Tooltip("Campo de visión en el que hay que mantener al demonio (total: 120 = 60° a cada lado del centro de la cámara)")]
+    public float watchViewAngle = 120f;
+    [Tooltip("Segundos que se puede perder de vista al demonio antes del susto (evita morir por un tirón del ratón)")]
+    public float watchGrace = 0.35f;
+    [Header("General")]
     public bool onlyOnce = true;         // si es false, se repite cada vez que el jugador entra
     public bool showHint = true;         // texto de ayuda en pantalla (apagado en niveles reales)
 
@@ -36,6 +52,8 @@ public class LookBackEncounter : MonoBehaviour
     bool armed;
     Vector3 savedForward;
     Vector3 startPos;
+    Vector3 demonPos;
+    float lostSight;
     Transform player;
     Transform cam;
 
@@ -75,8 +93,11 @@ public class LookBackEncounter : MonoBehaviour
     bool Broken()
     {
         // Mirar atrás: ángulo horizontal entre hacia dónde miraba al empezar y hacia dónde mira ahora
-        if (mode != Mode.Freeze && Vector3.Angle(savedForward, Flat(cam.forward)) > maxAngle) return true;
-        if (mode == Mode.NoLook) return false;
+        if (mode == Mode.Watch) return LostDemon();
+        bool checkLook = mode == Mode.NoLook || (mode == Mode.Confront && punishLookBack);
+        bool checkMove = mode == Mode.Freeze || (mode == Mode.Confront && punishMovement);
+        if (checkLook && Vector3.Angle(savedForward, Flat(cam.forward)) > maxAngle) return true;
+        if (!checkMove) return false;
 
         // Freeze y Confront: tras el tiempo de reacción se fija la posición y no se puede salir de ella
         if (duration - timer < graceTime) return false;
@@ -84,6 +105,17 @@ public class LookBackEncounter : MonoBehaviour
         Vector3 moved = player.position - startPos;
         moved.y = 0;
         return moved.magnitude > moveTolerance;
+    }
+
+    // Watch: ángulo entre hacia dónde mira la cámara y la dirección al demonio (en horizontal)
+    bool LostDemon()
+    {
+        Vector3 toDemon = demonPos - cam.position;
+        toDemon.y = 0;
+        if (toDemon.sqrMagnitude < 0.01f) return false;
+        bool visible = Vector3.Angle(Flat(cam.forward), toDemon.normalized) <= watchViewAngle * 0.5f;
+        lostSight = visible ? 0f : lostSight + Time.deltaTime;
+        return lostSight > watchGrace;
     }
 
     void Caught()
@@ -106,29 +138,32 @@ public class LookBackEncounter : MonoBehaviour
         state = State.Active;
         timer = duration;
         armed = false;
+        lostSight = 0f;
         savedForward = Flat(cam.forward);   // hacia donde miraba al empezar
         if (stepsAudio != null)
         {
             stepsAudio.transform.position = cam.position - savedForward * soundDistance;   // detrás del jugador
             stepsAudio.Play();
         }
-        if (mode == Mode.Confront && jumpscare != null) ShowDemonAhead();
+        if ((mode == Mode.Confront || mode == Mode.Watch) && jumpscare != null) ShowDemonAhead();
     }
 
-    // El demonio aparece quieto delante del jugador, mirándolo; si hay una pared antes, queda justo delante de ella
+    // El demonio aparece quieto delante (o detrás) del jugador, mirándolo; si hay una pared antes, queda justo delante de ella
     void ShowDemonAhead()
     {
+        Vector3 dir = demonSide == DemonSide.Behind ? -savedForward : savedForward;
         float dist = demonDistance;
-        if (Physics.Raycast(cam.position, savedForward, out RaycastHit hit, demonDistance, ~0, QueryTriggerInteraction.Ignore))
+        if (Physics.Raycast(cam.position, dir, out RaycastHit hit, demonDistance, ~0, QueryTriggerInteraction.Ignore))
             dist = Mathf.Max(1.5f, hit.distance - 0.6f);
-        Vector3 pos = player.position + savedForward * dist;   // el pivote del Player está en los pies
+        Vector3 pos = player.position + dir * dist;   // el pivote del Player está en los pies
+        demonPos = pos;
         jumpscare.Show(pos, player.position);
     }
 
     void End()
     {
         if (stepsAudio != null) stepsAudio.Stop();
-        if (mode == Mode.Confront && jumpscare != null) jumpscare.Hide();
+        if ((mode == Mode.Confront || mode == Mode.Watch) && jumpscare != null) jumpscare.Hide();
         threats = Mathf.Max(0, threats - 1);
         state = onlyOnce ? State.Done : State.Idle;
     }
@@ -141,7 +176,8 @@ public class LookBackEncounter : MonoBehaviour
         GUIStyle style = new GUIStyle(GUI.skin.label) { fontSize = 30, alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold };
         style.normal.textColor = state == State.Warning ? Color.gray : new Color(1f, 0.4f, 0.4f);
         string active = mode == Mode.Freeze ? "RESPIRACIÓN DETRÁS DE TI. NO TE MUEVAS"
-                      : mode == Mode.Confront ? "ALGO TE MIRA DE FRENTE. NO TE MUEVAS NI MIRES ATRÁS"
+                      : mode == Mode.Watch ? "EL DEMONIO ESTÁ AHÍ. NO LO PIERDAS DE VISTA"
+                      : mode == Mode.Confront ? (demonSide == DemonSide.Behind ? "ALGO ESTÁ DETRÁS DE TI. NO MIRES ATRÁS" : "ALGO TE MIRA DE FRENTE. NO TE MUEVAS NI MIRES ATRÁS")
                       : "PASOS DETRÁS DE TI. NO MIRES ATRÁS";
         GUI.Label(new Rect(0, 60, Screen.width, 50), state == State.Warning ? "...algo se acerca..." : active, style);
     }

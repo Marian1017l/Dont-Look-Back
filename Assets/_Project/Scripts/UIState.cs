@@ -5,6 +5,7 @@ using UnityEngine;
 public static class UIState
 {
     public static bool PanelOpen { get; private set; }
+    public static bool IntroPlaying;   // durante la apertura de ojos: el jugador ni se mueve ni interactúa
     public static bool JustClosed => Time.frameCount == closedFrame;   // la E que cierra no debe volver a usar el objeto
 
     static int closedFrame = -1;

@@ -138,6 +138,7 @@ public static class Level01Builder
         // Arquitectura estática: Unity la agrupa y dibuja más rápido
         foreach (Transform t in architecture.GetComponentsInChildren<Transform>()) t.gameObject.isStatic = true;
 
+        Level01Intro.AddIntro(UnityEngine.SceneManagement.SceneManager.GetActiveScene());
         EditorSceneManager.SaveScene(UnityEngine.SceneManagement.SceneManager.GetActiveScene(), ScenePath);
         AddToBuildSettings(ScenePath);
         AssetDatabase.SaveAssets();
@@ -267,7 +268,7 @@ public static class Level01Builder
     {
         RenderSettings.skybox = null;
         RenderSettings.ambientMode = AmbientMode.Flat;
-        RenderSettings.ambientLight = new Color(0.085f, 0.095f, 0.115f);   // base fría y baja: sin linterna se intuye la forma de las cosas, pero hace falta la linterna para ver bien
+        RenderSettings.ambientLight = Level01Intro.Ambient;   // base fría y baja: sin linterna se intuye la forma de las cosas, pero hace falta la linterna para ver bien
         RenderSettings.fog = true;
         RenderSettings.fogMode = FogMode.ExponentialSquared;
         RenderSettings.fogColor = new Color(0.066f, 0.072f, 0.084f);

@@ -13,7 +13,7 @@ public class PlayerInteract : MonoBehaviour
     void Update()
     {
         messageTimer -= Time.deltaTime;
-        if (UIState.PanelOpen || UIState.JustClosed || Keyboard.current == null || !Keyboard.current.eKey.wasPressedThisFrame) return;
+        if (UIState.PanelOpen || UIState.IntroPlaying || UIState.JustClosed || Keyboard.current == null || !Keyboard.current.eKey.wasPressedThisFrame) return;
 
         RaycastHit hit;
         if (!Look(out hit)) return;

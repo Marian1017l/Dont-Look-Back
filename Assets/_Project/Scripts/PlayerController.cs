@@ -24,7 +24,7 @@ public class PlayerController : MonoBehaviour
 
     void Update()
     {
-        if (UIState.PanelOpen) return;   // no moverse mientras hay un panel abierto
+        if (UIState.PanelOpen || UIState.IntroPlaying) return;   // no moverse mientras hay un panel abierto
         Look();
         Move();
     }
