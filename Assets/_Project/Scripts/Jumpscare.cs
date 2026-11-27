@@ -55,6 +55,8 @@ public class Jumpscare : MonoBehaviour
     Quaternion baseRot;
     Coroutine flicker;
     int approachIndex;
+    Animator anim;
+    bool hasRun, hasAttack;
     Flashlight flashlight;
 
     // ---------------------------------------------------------------- Sitio libre de paredes
@@ -230,6 +232,11 @@ public class Jumpscare : MonoBehaviour
         Fit();
         if (scareSound != null) scareSound.Play();
         GlitchFlashlight(time);
+        bool attackSent = false;
+        if (anim != null)
+        {
+            if (hasRun) { anim.ResetTrigger("Attack"); anim.SetTrigger("Run"); }
+        }
 
         // Desde dónde arranca la carrera y hasta dónde llega: se acorta si hay una pared delante (el demonio no la atraviesa)
         Vector3 runDir = forward;
@@ -272,6 +279,9 @@ public class Jumpscare : MonoBehaviour
                 scareObject.transform.LookAt(cam);
             }
 
+            // Al llegar casi a tu cara pasa de correr a atacar
+            if (!attackSent && p >= 0.8f && anim != null && hasAttack) { anim.SetTrigger("Attack"); attackSent = true; }
+
             // Cámara temblando, cada vez más al acercarse
             cam.localPosition = camLocal + Random.insideUnitSphere * cameraShake * Mathf.Clamp01(p + 0.3f);
             yield return null;
@@ -305,7 +315,16 @@ public class Jumpscare : MonoBehaviour
         rendererWasOn = new bool[renderers.Length];
         for (int i = 0; i < renderers.Length; i++) rendererWasOn[i] = renderers[i].enabled;
         baseScale = scareObject.transform.localScale;
-        foreach (Animator an in scareObject.GetComponentsInChildren<Animator>(true)) an.applyRootMotion = false;   // la animación no mueve al demonio: lo mueve este script
+        anim = scareObject.GetComponentInChildren<Animator>(true);
+        if (anim != null)
+        {
+            anim.applyRootMotion = false;   // la animación no mueve al demonio: lo mueve este script
+            foreach (AnimatorControllerParameter p in anim.parameters)
+            {
+                if (p.name == "Run") hasRun = true;
+                if (p.name == "Attack") hasAttack = true;
+            }
+        }
         if (renderers.Length == 0)
         {
             Debug.LogWarning("Jumpscare: '" + scareObject.name + "' no tiene ningún Renderer, no se va a ver nada.", this);

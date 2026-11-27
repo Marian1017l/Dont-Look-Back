@@ -187,7 +187,9 @@ public static class ScreamerKit
         if (imp == null) return;
         bool dirty = false;
 
-        if (imp.avatarSetup == ModelImporterAvatarSetup.NoAvatar) { imp.avatarSetup = ModelImporterAvatarSetup.CreateFromThisModel; dirty = true; }
+        // Humanoid: las animaciones de Mixamo bajadas aparte (correr, atacar) usan otros nombres de hueso y solo se retargetean así
+        if (imp.animationType != ModelImporterAnimationType.Human) { imp.animationType = ModelImporterAnimationType.Human; dirty = true; }
+        if (imp.avatarSetup != ModelImporterAvatarSetup.CreateFromThisModel) { imp.avatarSetup = ModelImporterAvatarSetup.CreateFromThisModel; dirty = true; }
 
         // El clip de Mixamo no viene en bucle: se activa para que el demonio respire sin congelarse
         ModelImporterClipAnimation[] clips = imp.clipAnimations.Length > 0 ? imp.clipAnimations : imp.defaultClipAnimations;
@@ -240,24 +242,76 @@ public static class ScreamerKit
         return m;
     }
 
-    // Animator con un único estado: la animación del FBX (en bucle, ver EnsureSkinImport)
+    public const string RunFbx = "Assets/Animaciones/Zombie Running.fbx";
+    public const string AttackFbx = "Assets/Animaciones/Zombie Attack.fbx";
+
+    // Animación suelta de Mixamo (sin modelo): Humanoid para que se retargetee al demonio. loop = true para correr.
+    static void EnsureAnimationImport(string path, bool loop)
+    {
+        ModelImporter imp = AssetImporter.GetAtPath(path) as ModelImporter;
+        if (imp == null) return;
+        bool dirty = false;
+        if (imp.animationType != ModelImporterAnimationType.Human) { imp.animationType = ModelImporterAnimationType.Human; dirty = true; }
+        if (imp.avatarSetup != ModelImporterAvatarSetup.CreateFromThisModel) { imp.avatarSetup = ModelImporterAvatarSetup.CreateFromThisModel; dirty = true; }
+        ModelImporterClipAnimation[] clips = imp.clipAnimations.Length > 0 ? imp.clipAnimations : imp.defaultClipAnimations;
+        bool clipChanged = false;
+        foreach (ModelImporterClipAnimation c in clips)
+        {
+            if (c.loopTime != loop) { c.loopTime = loop; clipChanged = true; }
+            if (loop && !c.loopPose) { c.loopPose = true; clipChanged = true; }
+        }
+        if (clipChanged) { imp.clipAnimations = clips; dirty = true; }
+        if (dirty) imp.SaveAndReimport();
+    }
+
+    static AnimationClip FirstClip(string path)
+    {
+        foreach (Object o in AssetDatabase.LoadAllAssetsAtPath(path))
+            if (o is AnimationClip c && !c.name.StartsWith("__preview__")) return c;
+        return null;
+    }
+
+    // Animator del demonio: Idle (de pie, en bucle) -> Run (trigger "Run") -> Attack (trigger "Attack").
+    // Jumpscare activa Run al empezar el ataque y Attack justo antes de llegar a la cara. Al desactivar el demonio el Animator vuelve a Idle.
     static RuntimeAnimatorController EnsureSkinController()
     {
-        AnimationClip clip = null;
-        foreach (Object o in AssetDatabase.LoadAllAssetsAtPath(SkinFbx))
-            if (o is AnimationClip c && !c.name.StartsWith("__preview__")) { clip = c; break; }
+        EnsureAnimationImport(RunFbx, true);
+        EnsureAnimationImport(AttackFbx, false);
+        AnimationClip idle = FirstClip(SkinFbx), run = FirstClip(RunFbx), attack = FirstClip(AttackFbx);
 
+        // Se reconstruye el contenido del controlador (sin borrar el archivo, para que las escenas conserven su referencia)
         var controller = AssetDatabase.LoadAssetAtPath<UnityEditor.Animations.AnimatorController>(SkinController);
         if (controller == null) controller = UnityEditor.Animations.AnimatorController.CreateAnimatorControllerAtPath(SkinController);
+        for (int i = controller.parameters.Length - 1; i >= 0; i--) controller.RemoveParameter(i);
         var sm = controller.layers[0].stateMachine;
-        if (sm.states.Length == 0)
+        foreach (var st in sm.states) sm.RemoveState(st.state);
+        controller.AddParameter("Run", AnimatorControllerParameterType.Trigger);
+        controller.AddParameter("Attack", AnimatorControllerParameterType.Trigger);
+
+        var idleState = sm.AddState("Idle");
+        idleState.motion = idle;
+        sm.defaultState = idleState;
+
+        if (run != null)
         {
-            var state = sm.AddState("Idle");
-            state.motion = clip;
-            sm.defaultState = state;
+            var runState = sm.AddState("Run");
+            runState.motion = run;
+            var toRun = idleState.AddTransition(runState);
+            toRun.AddCondition(UnityEditor.Animations.AnimatorConditionMode.If, 0f, "Run");
+            toRun.hasExitTime = false; toRun.duration = 0.05f;
+
+            if (attack != null)
+            {
+                var attackState = sm.AddState("Attack");
+                attackState.motion = attack;
+                var toAttack = runState.AddTransition(attackState);
+                toAttack.AddCondition(UnityEditor.Animations.AnimatorConditionMode.If, 0f, "Attack");
+                toAttack.hasExitTime = false; toAttack.duration = 0.08f;
+            }
         }
-        else sm.states[0].state.motion = clip;
-        if (clip == null) Debug.LogWarning("ScreamerKit: no se encontró la animación dentro de " + SkinFbx);
+        if (idle == null) Debug.LogWarning("ScreamerKit: no se encontró la animación dentro de " + SkinFbx);
+        if (run == null) Debug.LogWarning("ScreamerKit: falta " + RunFbx + "; el demonio atacará sin animación de correr.");
+        if (attack == null) Debug.LogWarning("ScreamerKit: falta " + AttackFbx + "; el demonio atacará sin animación de ataque.");
         EditorUtility.SetDirty(controller);
         AssetDatabase.SaveAssets();
         return controller;

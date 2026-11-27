@@ -25,7 +25,10 @@ public static class Level01Demon
 
         GameObject old = jumpscare.scareObject;
         Animator oldAnim = old != null ? old.GetComponentInChildren<Animator>(true) : null;
-        if (old != null && old.name == "Demon" && oldAnim != null && oldAnim.runtimeAnimatorController != null) { Debug.Log("El Nivel 1 ya usa el demonio de Skins con animación."); return; }
+        bool hasAttackAnim = false;
+        if (oldAnim != null && oldAnim.runtimeAnimatorController != null)
+            foreach (AnimatorControllerParameter p in oldAnim.parameters) if (p.name == "Attack") hasAttackAnim = true;
+        if (old != null && old.name == "Demon" && hasAttackAnim) { Debug.Log("El Nivel 1 ya usa el demonio de Skins con animaciones de correr y atacar."); return; }
 
         Transform parent = old != null ? old.transform.parent : null;
         if (parent == null)
