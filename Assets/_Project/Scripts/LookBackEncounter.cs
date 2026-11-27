@@ -52,6 +52,8 @@ public class LookBackEncounter : MonoBehaviour
     State state = State.Idle;
     float timer;
     float audioVolume = 1f;
+    bool demonShown;        // el demonio ya está en su sitio (si no cabe, espera a que haya hueco libre)
+    float demonWait;
     float nextGlitch;
     Flashlight flashlight;
     bool armed;
@@ -95,6 +97,13 @@ public class LookBackEncounter : MonoBehaviour
         // Zona segura: llegar a ella termina el encuentro
         if (safeZone != null && safeZone.bounds.Contains(player.position)) { End(); return; }
 
+        // Si al empezar el jugador estaba pegado a una pared, el demonio espera a que haya hueco (hasta 3 s; después aparece donde mejor quepa)
+        if (UsesDemon() && !demonShown)
+        {
+            demonWait += Time.deltaTime;
+            demonShown = TryShowDemon(demonWait < 3f);
+        }
+
         if (Broken()) { Caught(); return; }
         if (timer <= 0) End();
     }
@@ -122,7 +131,7 @@ public class LookBackEncounter : MonoBehaviour
     bool Broken()
     {
         // Mirar atrás: ángulo horizontal entre hacia dónde miraba al empezar y hacia dónde mira ahora
-        if (mode == Mode.Watch) return LostDemon();
+        if (mode == Mode.Watch) return demonShown && LostDemon();
         bool checkLook = mode == Mode.NoLook || (mode == Mode.Confront && punishLookBack);
         bool checkMove = mode == Mode.Freeze || (mode == Mode.Confront && punishMovement);
         if (checkLook && Vector3.Angle(savedForward, Flat(cam.forward)) > maxAngle) return true;
@@ -175,19 +184,25 @@ public class LookBackEncounter : MonoBehaviour
             stepsAudio.volume = audioVolume;
             if (!stepsAudio.isPlaying) stepsAudio.Play();
         }
-        if ((mode == Mode.Confront || mode == Mode.Watch) && jumpscare != null) ShowDemonAhead();
+        demonShown = false;
+        demonWait = 0f;
+        if (UsesDemon()) demonShown = TryShowDemon(true);
     }
 
-    // El demonio aparece quieto delante (o detrás) del jugador, mirándolo; si hay una pared antes, queda justo delante de ella
-    void ShowDemonAhead()
+    bool UsesDemon() => (mode == Mode.Confront || mode == Mode.Watch) && jumpscare != null;
+
+    // El demonio aparece quieto delante (o detrás) del jugador, mirándolo, en un sitio libre de paredes y muebles:
+    // si la pared está cerca se queda justo delante de ella; si no cabe, prueba un poco hacia los lados (siempre dentro del campo de visión).
+    // strict = true: si no hay un hueco de 2,5 m devuelve false y se reintenta más tarde.
+    bool TryShowDemon(bool strict)
     {
         Vector3 dir = demonSide == DemonSide.Behind ? -savedForward : savedForward;
-        float dist = demonDistance;
-        if (Physics.Raycast(cam.position, dir, out RaycastHit hit, demonDistance, ~0, QueryTriggerInteraction.Ignore))
-            dist = Mathf.Max(1.5f, hit.distance - 0.6f);
-        Vector3 pos = player.position + dir * dist;   // el pivote del Player está en los pies
+        bool ok = Jumpscare.FindSpot(cam.position, player.position.y, dir, demonDistance, 2.5f, 40f, out Vector3 spotDir, out float dist);
+        if (!ok && strict) return false;
+        Vector3 pos = player.position + spotDir * dist;   // el pivote del Player está en los pies
         demonPos = pos;
         jumpscare.Show(pos, player.position);
+        return true;
     }
 
     void End()

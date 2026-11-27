@@ -57,6 +57,50 @@ public class Jumpscare : MonoBehaviour
     int approachIndex;
     Flashlight flashlight;
 
+    // ---------------------------------------------------------------- Sitio libre de paredes
+
+    const float BodyRadius = 0.4f;   // el demonio ocupa una columna de 0,8 m de ancho y 2 m de alto
+
+    // Metros libres desde 'eye' en la dirección 'dir' para una columna del tamaño del demonio (con margen), hasta 'desired'.
+    // Se barre todo el cuerpo (no un solo rayo) para que no quede metido en una pared ni en un mueble.
+    public static float ClearDistance(Vector3 eye, float floorY, Vector3 dir, float desired)
+    {
+        Vector3 p1 = new Vector3(eye.x, floorY + 0.5f, eye.z), p2 = new Vector3(eye.x, floorY + 2.0f, eye.z);
+        RaycastHit[] hits = Physics.CapsuleCastAll(p1, p2, BodyRadius, dir, desired + 0.1f, ~0, QueryTriggerInteraction.Ignore);
+        float best = desired;
+        foreach (RaycastHit h in hits)
+        {
+            if (h.distance <= 0f) continue;                                    // ya se solapaba con el jugador al empezar
+            if (h.collider.GetComponentInParent<PlayerController>() != null) continue;
+            if (h.collider.bounds.size.y < 0.5f) continue;                     // objetos bajos del suelo no cuentan
+            best = Mathf.Min(best, h.distance - 0.1f);
+        }
+        return Mathf.Max(0f, best);
+    }
+
+    // Elige hacia dónde y a qué distancia colocar al demonio: prefiere la dirección pedida; si hay una pared demasiado cerca
+    // prueba ligeros giros a ambos lados (hasta maxAngle). Devuelve false si no hay ningún sitio con 'minDist' libre
+    // (entonces dir/dist son lo mejor que hay, con al menos 0,8 m).
+    public static bool FindSpot(Vector3 eye, float floorY, Vector3 baseDir, float desired, float minDist, float maxAngle, out Vector3 dir, out float dist)
+    {
+        baseDir.y = 0f;
+        baseDir = baseDir.sqrMagnitude > 0.0001f ? baseDir.normalized : Vector3.forward;
+        float[] angles = { 0f, 20f, -20f, 40f, -40f, 60f, -60f, 90f, -90f };
+        float best = -1f;
+        Vector3 bestDir = baseDir;
+        foreach (float a in angles)
+        {
+            if (Mathf.Abs(a) > maxAngle) continue;
+            Vector3 d = Quaternion.Euler(0f, a, 0f) * baseDir;
+            float clear = ClearDistance(eye, floorY, d, desired);
+            if (clear >= minDist) { dir = d; dist = Mathf.Min(desired, clear); return true; }
+            if (clear > best) { best = clear; bestDir = d; }
+        }
+        dir = bestDir;
+        dist = Mathf.Max(0.8f, best);
+        return false;
+    }
+
     // ---------------------------------------------------------------- Espera: aparece, se agita y desaparece
 
     // Muestra el demonio quieto en una posición mirando hacia 'facing' (el jugador). No hace nada si el ataque está en curso.
@@ -142,7 +186,8 @@ public class Jumpscare : MonoBehaviour
             approachIndex = step;
             flicker = StartCoroutine(Step());
         }
-        Vector3 pos = basePos + toward * Mathf.Min(approachStep * approachIndex, creepMax);
+        float room = Mathf.Max(0f, Vector3.Distance(new Vector3(watchPoint.x, basePos.y, watchPoint.z), basePos) - 1.8f);   // se queda a 1,8 m como mínimo
+        Vector3 pos = basePos + toward * Mathf.Min(approachStep * approachIndex, creepMax, room);
 
         // Ruido suave siempre, y de vez en cuando un tic más fuerte y seco
         float tic = Mathf.PerlinNoise(t * 2.5f, 7.3f) > 0.78f ? 1f : 0.25f;
@@ -186,17 +231,26 @@ public class Jumpscare : MonoBehaviour
         if (scareSound != null) scareSound.Play();
         GlitchFlashlight(time);
 
+        // Desde dónde arranca la carrera y hasta dónde llega: se acorta si hay una pared delante (el demonio no la atraviesa)
+        Vector3 runDir = forward;
+        float startD = runFromDistance, endD = distance;
+        if (standOnGround)
+        {
+            FindSpot(cam.position, floorY, forward, runFromDistance, 2.5f, 50f, out runDir, out startD);
+            endD = Mathf.Min(distance, Mathf.Max(0.7f, startD - 0.3f));
+        }
+
         Vector3 camLocal = cam.localPosition;
         float run = Mathf.Max(0.05f, Mathf.Min(runTime, time * 0.65f));
         for (float t = 0f; t < time; t += Time.deltaTime)
         {
             float p = Mathf.Clamp01(t / run);                 // 0 = arranca, 1 = ya está encima
-            float d = Mathf.Lerp(runFromDistance, distance, p * p);   // acelera: sale despacio y llega a toda velocidad
+            float d = Mathf.Lerp(startD, endD, p * p);   // acelera: sale despacio y llega a toda velocidad
 
             if (standOnGround)
             {
                 float bob = Mathf.Abs(Mathf.Sin(t * 16f)) * runBob * (1f - p);   // pasos: el cuerpo sube y baja
-                Vector3 ground = new Vector3(cam.position.x, floorY + bob, cam.position.z) + forward * d;
+                Vector3 ground = new Vector3(cam.position.x, floorY + bob, cam.position.z) + runDir * d;
                 PlaceAt(ground, cam.position);
                 if (headPoint != null)
                 {
