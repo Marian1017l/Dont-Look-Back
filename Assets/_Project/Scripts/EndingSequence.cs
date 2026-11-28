@@ -15,6 +15,7 @@ public class EndingSequence : MonoBehaviour
     public Light sun;                         // luz direccional: luna al principio, sol bajo al final
     public AudioSource ambience;              // ambiente continuo
     public AudioSource breathing;             // respiración que aparece detrás de la cámara hacia el final
+    public Material sky;                      // cielo (Skybox/Cubemap Blend): _CubemapTransition 1 = noche, hacia 0 = día. Si está vacío se usa un fondo liso
     public Vector3 startPoint = new Vector3(0f, 1.7f, 0f);
     public Vector3 endPoint = new Vector3(0f, 1.7f, 44f);
     public float walkTime = 38f;              // segundos de caminata
@@ -31,14 +32,18 @@ public class EndingSequence : MonoBehaviour
         new Subtitle { time = 34f, duration = 6f,   text = "No mires atrás." },
     };
 
-    static readonly Color NightFog = new Color(0.015f, 0.02f, 0.035f), DawnFog = new Color(0.52f, 0.47f, 0.42f);
-    static readonly Color NightLight = new Color(0.45f, 0.55f, 0.9f), DawnLight = new Color(1f, 0.72f, 0.45f);
-    static readonly Color NightAmbient = new Color(0.02f, 0.025f, 0.04f), DawnAmbient = new Color(0.26f, 0.25f, 0.25f);
+    static readonly Color NightFog = new Color(0.015f, 0.02f, 0.035f), DawnFog = new Color(0.58f, 0.56f, 0.54f);
+    // Cielo: tinte y mezcla con el cubemap de día al final (0 = día completo azul de dibujo animado; 0,5 deja un alba fría, violeta y rosada, que encaja con el tono del juego)
+    const float SkyDawn = 0.5f;
+    static readonly Color NightSky = new Color(0.30f, 0.33f, 0.45f), DawnSky = new Color(0.62f, 0.58f, 0.64f);
+    static readonly Color NightLight = new Color(0.45f, 0.55f, 0.9f), DawnLight = new Color(0.96f, 0.80f, 0.64f);
+    static readonly Color NightAmbient = new Color(0.02f, 0.025f, 0.04f), DawnAmbient = new Color(0.27f, 0.27f, 0.27f);
 
     enum Phase { Walk, Black, Credits }
     Phase phase = Phase.Walk;
     float t, phaseStart, creditsScroll;
     Camera camera;
+    Material skyInstance;   // copia del cielo: así el asset original no se modifica al jugar
     GUIStyle subStyle;
 
     void Start()
@@ -51,6 +56,12 @@ public class EndingSequence : MonoBehaviour
         RenderSettings.fog = true;
         RenderSettings.fogMode = FogMode.ExponentialSquared;
         RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
+        if (sky != null)
+        {
+            skyInstance = new Material(sky);
+            RenderSettings.skybox = skyInstance;
+            if (camera != null) camera.clearFlags = CameraClearFlags.Skybox;
+        }
         Apply(0f);
         if (ambience != null) ambience.Play();
         if (breathing != null) { breathing.volume = 0f; breathing.loop = true; }
@@ -81,6 +92,9 @@ public class EndingSequence : MonoBehaviour
         }
     }
 
+    // Aplica el aspecto (luz, niebla, cielo) de un instante u (0 = noche, 1 = amanecer) sin necesidad de jugar
+    public void Preview(float u) { Apply(Mathf.Clamp01(u)); }
+
     void EnterBlack()
     {
         phase = Phase.Black;
@@ -97,7 +111,14 @@ public class EndingSequence : MonoBehaviour
         RenderSettings.fogColor = fog;
         RenderSettings.fogDensity = Mathf.Lerp(0.032f, 0.013f, k);
         RenderSettings.ambientLight = Color.Lerp(NightAmbient, DawnAmbient, k);
-        if (camera != null) { camera.clearFlags = CameraClearFlags.SolidColor; camera.backgroundColor = fog; }
+        Material sm = skyInstance != null ? skyInstance : sky;
+        if (sm != null)
+        {
+            sm.SetFloat("_CubemapTransition", Mathf.Lerp(1f, SkyDawn, k));
+            sm.SetColor("_TintColor", Color.Lerp(NightSky, DawnSky, k));
+            sm.SetFloat("_Exposure", Mathf.Lerp(0.9f, 1.25f, k));
+        }
+        else if (camera != null) { camera.clearFlags = CameraClearFlags.SolidColor; camera.backgroundColor = fog; }
         if (sun != null)
         {
             sun.color = Color.Lerp(NightLight, DawnLight, k);

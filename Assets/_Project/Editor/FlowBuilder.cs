@@ -179,6 +179,7 @@ public static class FlowBuilder
         sun.intensity = 0.3f;
         sun.transform.rotation = Quaternion.Euler(30f, 180f, 0f);
 
+        EndingArt.Apply();   // bosque y cielo con los packs del proyecto (sustituye a los árboles temporales)
         EditorSceneManager.SaveScene(scene, EndingPath);
     }
 
